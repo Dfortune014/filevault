@@ -1,64 +1,113 @@
-# 🔐 Secure File Vault
+# FileVault Frontend
 
-A production-grade secure file sharing portal for sensitive business/legal documents, built with **AWS**, **Terraform**, and (soon) a **Next.js frontend**.  
+A modern, secure file management application built with React, TypeScript, and AWS Amplify.
 
-The project is structured as a **multi-week build**, with security-first practices like Cognito authentication, IAM least privilege, KMS encryption, and role-based API access.
+## Features
 
----
+- **Secure Authentication**: User registration, login, and email verification
+- **Role-Based Access Control**: Admin, Editor, and Viewer roles with different permissions
+- **File Management**: Upload, download, list, and delete files
+- **Modern UI**: Built with shadcn/ui components and Tailwind CSS
+- **AWS Integration**: Seamless integration with AWS Cognito and S3
 
-## 📂 Repository Structure
+## Technologies
 
-filevault/
-├── docs/ # Project documentation (week-by-week)
-│ ├── week1.md # Week 1: Storage + KMS
-│ ├── week2.md # Week 2: Authentication + IAM
-│ ├── week3.md # Week 3: API + Lambda backend
-├── frontend/ # Next.js frontend (planned for Week 4+)
-└── infrastructure/ # Terraform infrastructure as code
-├── terraform/ # Terraform modules for AWS resources
-└── scripts/ # Helper scripts for testing + packaging
+This project is built with:
 
+- **Vite** - Fast build tool and development server
+- **TypeScript** - Type-safe JavaScript
+- **React** - UI library
+- **shadcn/ui** - Modern UI components
+- **Tailwind CSS** - Utility-first CSS framework
+- **AWS Amplify** - Authentication and cloud services
+- **React Router** - Client-side routing
+- **React Hook Form** - Form management
+- **Zod** - Schema validation
 
----
+## Getting Started
 
-## 🚀 Project Goals
+### Prerequisites
 
-- **Secure File Sharing**: Upload, download, and manage sensitive files safely.
-- **Cloud Security Best Practices**:
-  - AWS S3 with KMS encryption
-  - Cognito authentication + MFA-ready
-  - IAM least-privilege role mappings
-  - API Gateway with JWT authorizers
-- **Extensible Architecture**: Terraform-managed infrastructure with room for multi-cloud expansion.
+- Node.js (version 18 or higher)
+- npm or yarn package manager
+- AWS account with Cognito and S3 configured
 
----
+### Installation
 
-## 📖 Documentation
+1. Clone the repository:
+```sh
+git clone <YOUR_GIT_URL>
+cd filevault/frontend
+```
 
-- [Week 1 – Storage & Security](./docs/week1.md)  
-- [Week 2 – Authentication & IAM](./docs/week2.md)  
-- [Week 3 – API & Lambda Backend](./docs/week3.md)  
+2. Install dependencies:
+```sh
+npm install
+```
 
----
+3. Configure AWS Amplify:
+   - Update `src/config/aws-config.ts` with your AWS configuration
+   - Ensure your Cognito User Pool and S3 bucket are properly configured
 
-## 🛠️ Tech Stack
+4. Start the development server:
+```sh
+npm run dev
+```
 
-- **Infrastructure**: Terraform, AWS (S3, KMS, Cognito, API Gateway, Lambda)  
-- **Frontend**: Next.js (Week 4)  
-- **Security**: IAM least-privilege, Cognito role mapping, SSE-KMS  
-- **Automation**: Test scripts (`test-s3-access.sh`, `test-api.sh`, etc.)
+The application will be available at `http://localhost:8080`.
 
----
+## Available Scripts
 
-## 📌 Next Steps
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run build:dev` - Build for development
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
 
-- Week 4 → Frontend integration (Next.js UI with Cognito login).  
-- Week 5 → Production hardening (CloudFront, WAF, logging).  
-- Extended → Multi-cloud support (Azure/GCP) + CI/CD.  
+## Project Structure
 
----
+```
+src/
+├── components/          # Reusable UI components
+│   ├── ui/             # shadcn/ui components
+│   └── ProtectedRoute.tsx
+├── config/             # Configuration files
+├── contexts/           # React contexts (Auth)
+├── hooks/              # Custom React hooks
+├── lib/                # Utility functions
+├── pages/              # Page components
+└── main.tsx           # Application entry point
+```
 
-## 👤 Author
+## Environment Variables
 
-Fortune Linus – Cloud Security Engineer 
-[LinkedIn](https://www.linkedin.com/in/fortunelinus) • [Portfolio](https://fortunelinus.com)
+Create a `.env` file in the frontend directory with the following variables:
+
+```
+VITE_AWS_REGION=your-aws-region
+VITE_USER_POOL_ID=your-cognito-user-pool-id
+VITE_USER_POOL_CLIENT_ID=your-cognito-client-id
+VITE_IDENTITY_POOL_ID=your-identity-pool-id
+VITE_S3_BUCKET=your-s3-bucket-name
+```
+
+## Deployment
+
+The frontend can be deployed to various platforms:
+
+1. **AWS Amplify**: Connect your GitHub repository for automatic deployments
+2. **Vercel**: Deploy with `vercel --prod`
+3. **Netlify**: Connect your repository for automatic deployments
+4. **Static Hosting**: Build with `npm run build` and deploy the `dist` folder
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test your changes
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.

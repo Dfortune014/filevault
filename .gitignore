@@ -1,37 +1,25 @@
-# Terraform
-*.tfstate
-*.tfstate.*
-crash.log
-.terraform/
-.terraform.lock.hcl
-terraform.tfvars
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# AWS credentials
-*.pem
-*.key
-.env
+node_modules
+dist
+dist-ssr
+*.local
 
-
-# Python Lambda packages
-*.zip
-__pycache__/
-*.pyc
-
-# Node / Frontend
-node_modules/
-.next/
-dist/
-
-# OS / IDE
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
 .DS_Store
-Thumbs.db
-.vscode/
-.idea/
-
-# Credentials / Secrets
-*.env
-.env.local
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.env
