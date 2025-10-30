@@ -42,42 +42,55 @@ if [ "$ID_TOKEN" == "null" ] || [ -z "$ID_TOKEN" ]; then
 fi
 echo "✅ Got ID token"
 
+echo $ID_TOKEN | cut -d. -f2 | base64 -d | jq .
+
 #############################################
-# 2. Test Endpoints
+# 2. Helper: Test endpoint with debug
 #############################################
 function test_endpoint() {
   local METHOD=$1
   local PATH=$2
   local BODY=${3:-}
 
-  echo -n "➡️  $METHOD $PATH ... "
+  echo "➡️  $METHOD $PATH"
   if [ -z "$BODY" ]; then
-    RESP=$($CURL_BIN -s -o /dev/null -w "%{http_code}" -X $METHOD \
+    RESP=$($CURL_BIN -s -w "\n%{http_code}" -X $METHOD \
       "$API_ENDPOINT$PATH" \
       -H "Authorization: $ID_TOKEN")
   else
-    RESP=$($CURL_BIN -s -o /dev/null -w "%{http_code}" -X $METHOD \
+    RESP=$($CURL_BIN -s -w "\n%{http_code}" -X $METHOD \
       "$API_ENDPOINT$PATH" \
       -H "Authorization: $ID_TOKEN" \
       -H "Content-Type: application/json" \
       -d "$BODY")
   fi
 
-  if [[ "$RESP" =~ ^2 ]]; then
-    echo "✅ PASS ($RESP)"
+  # Split response into body + status without head/tail
+  BODY_OUT="${RESP%$'\n'*}"
+  STATUS="${RESP##*$'\n'}"
+
+  echo "↩️  Status: $STATUS"
+  echo "↩️  Response: $BODY_OUT"
+
+  if [[ "$STATUS" =~ ^2 ]]; then
+    echo "✅ PASS"
   else
-    echo "❌ FAIL ($RESP)"
+    echo "❌ FAIL"
   fi
+  echo "----------------------------------------"
 }
 
+#############################################
+# 3. Run Tests
+#############################################
 # Upload URL
-test_endpoint "POST" "/api/files/upload-url" '{"filename":"test.png"}'
+test_endpoint "POST" "/api/files/upload-url" '{"filename":"test.txt"}'
 
 # List files
 test_endpoint "GET" "/api/files"
 
-# Download (id mapped in path)
+# Download
 test_endpoint "GET" "/api/files/test.txt/download"
 
-# Delete (id mapped in path)
+# Delete
 test_endpoint "DELETE" "/api/files/test.txt"

@@ -15,3 +15,9 @@ variable "mfa_configuration" {
   description = "MFA setting for the Cognito User Pool (OFF, ON, OPTIONAL)"
   default     = "OFF"
 }
+
+variable "post_confirmation_lambda_arn" {
+  description = "ARN of the PostConfirmation Lambda"
+  type        = string
+  default     = null
+}

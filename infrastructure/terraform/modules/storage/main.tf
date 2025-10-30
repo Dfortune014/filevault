@@ -1,3 +1,7 @@
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
+
 resource "aws_kms_key" "filevault" {
   description             = "KMS CMK for Secure File Portal encryption"
   deletion_window_in_days = 10
@@ -8,13 +12,18 @@ resource "aws_kms_key" "filevault" {
 }
 
 resource "aws_s3_bucket" "filevault" {
-  bucket = "${var.project_name}-files"
+  bucket        = "${var.project_name}-${var.env}-${data.aws_caller_identity.current.account_id}-${data.aws_region.current.name}-files"
   force_destroy = false
 
   tags = {
-    Name = "${var.project_name}-bucket"
+    Name        = "${var.project_name}-files"
+    Project     = var.project_name
+    Environment = var.env
+    AccountID   = data.aws_caller_identity.current.account_id
+    Region      = data.aws_region.current.name
   }
 }
+
 
 # Default encryption with KMS
 resource "aws_s3_bucket_server_side_encryption_configuration" "default" {

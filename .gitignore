@@ -1,9 +1,20 @@
 # Terraform
 *.tfstate
 *.tfstate.*
+crash.log
 .terraform/
 .terraform.lock.hcl
-crash.log
+terraform.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# AWS credentials
+*.pem
+*.key
+.env
+
 
 # Python Lambda packages
 *.zip

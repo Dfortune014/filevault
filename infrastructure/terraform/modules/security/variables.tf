@@ -3,6 +3,13 @@ variable "project_name" {
   type        = string
 }
 
+variable "env" {
+  description = "Environment name"
+  type        = string
+  default     = "dev"
+}
+
+
 variable "admin_actions" {
   description = "List of IAM actions allowed for admin role"
   type        = list(string)

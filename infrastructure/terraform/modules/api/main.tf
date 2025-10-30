@@ -7,10 +7,11 @@ resource "aws_apigatewayv2_api" "this" {
 
   cors_configuration {
     allow_headers = ["Authorization", "Content-Type"]
-    allow_methods = ["GET", "POST", "DELETE", "OPTIONS"]
+    allow_methods = ["GET", "PATCH", "POST", "DELETE", "OPTIONS"]
     allow_origins = ["*"] # later restrict to your frontend domain
   }
 }
+
 
 #############################################
 # Cognito Authorizer
@@ -78,6 +79,14 @@ resource "aws_apigatewayv2_integration" "delete" {
   payload_format_version  = "2.0"
 }
 
+resource "aws_apigatewayv2_integration" "list_users" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.list_users_lambda_arn
+  integration_method     = "GET"
+  payload_format_version = "2.0"
+}
+
 #############################################
 # API Routes
 #############################################
@@ -112,3 +121,89 @@ resource "aws_apigatewayv2_route" "delete" {
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
   authorization_type = "JWT"
 }
+# Users API Route
+resource "aws_apigatewayv2_route" "list_users" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /api/users"
+  target             = "integrations/${aws_apigatewayv2_integration.list_users.id}"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "JWT"
+}
+############################################
+# API routes for Update role and delegate 
+############################################
+# PATCH /api/users/{id}/role
+resource "aws_apigatewayv2_integration" "update_role" {
+  api_id                  = aws_apigatewayv2_api.this.id
+  integration_type        = "AWS_PROXY"
+  integration_uri         = var.update_role_lambda_arn
+  integration_method      = "PATCH"
+  payload_format_version  = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "update_role" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "PATCH /api/users/{id}/role"
+  target             = "integrations/${aws_apigatewayv2_integration.update_role.id}"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "JWT"
+}
+
+# PATCH /api/users/{id}/delegate
+resource "aws_apigatewayv2_integration" "update_delegate" {
+  api_id                  = aws_apigatewayv2_api.this.id
+  integration_type        = "AWS_PROXY"
+  integration_uri         = var.update_delegate_lambda_arn
+  integration_method      = "PATCH"
+  payload_format_version  = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "update_delegate" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "PATCH /api/users/{id}/delegate"
+  target             = "integrations/${aws_apigatewayv2_integration.update_delegate.id}"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "JWT"
+}
+
+
+#############################################
+# Get Delegated Users Route (Editor Access)
+#############################################
+resource "aws_apigatewayv2_integration" "get_delegated_users" {
+  api_id                  = aws_apigatewayv2_api.this.id
+  integration_type        = "AWS_PROXY"
+  integration_uri         = var.get_delegated_users_lambda_arn
+  integration_method      = "GET"
+  payload_format_version  = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_delegated_users" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /api/users/delegated"
+  target             = "integrations/${aws_apigatewayv2_integration.get_delegated_users.id}"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "JWT"
+}
+
+####################################################
+# Admin Delete
+##################################################
+# Admin delete integration
+resource "aws_apigatewayv2_integration" "admin_delete" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.admin_delete_lambda_arn
+  integration_method     = "DELETE"
+  payload_format_version = "2.0"
+}
+
+# Admin delete route
+resource "aws_apigatewayv2_route" "admin_delete" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "DELETE /api/admin/files/{id}"
+  target             = "integrations/${aws_apigatewayv2_integration.admin_delete.id}"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "JWT"
+}
+

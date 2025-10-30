@@ -1,10 +1,9 @@
 resource "aws_cognito_user_pool" "this" {
   name = var.user_pool_name
 
-  # Automatically verify email addresses
-  auto_verified_attributes = ["email"]
 
-  # Password policy for stronger security
+  auto_verified_attributes = ["email"]
+  
   password_policy {
     minimum_length    = var.password_min_length
     require_lowercase = true
@@ -14,9 +13,17 @@ resource "aws_cognito_user_pool" "this" {
     temporary_password_validity_days = 7
   }
 
-  # MFA settings (OFF, ON, or OPTIONAL)
   mfa_configuration = var.mfa_configuration
+
+  # 👇 Add Lambda trigger only if passed in
+  dynamic "lambda_config" {
+    for_each = var.post_confirmation_lambda_arn != null ? [1] : []
+    content {
+      post_confirmation = var.post_confirmation_lambda_arn
+    }
+  }
 }
+
 
 resource "aws_cognito_user_pool_client" "this" {
   name         = "${var.user_pool_name}-client"

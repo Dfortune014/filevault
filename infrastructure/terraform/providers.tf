@@ -9,7 +9,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "filevault-tfstate"
+    bucket         = "filevault-tfstate-new"
     key            = "terraform/state.tfstate"
     region         = "us-east-1"
     dynamodb_table = "filevault-lock"

@@ -1,3 +1,5 @@
+data "aws_region" "current" {}
+
 # IAM ROLES
 
 # Admin role - full access
@@ -81,8 +83,15 @@ data "aws_iam_policy_document" "viewer" {
 
 # Dedicated S3 bucket for logs
 resource "aws_s3_bucket" "cloudtrail_logs" {
-  bucket        = "${var.project_name}-cloudtrail-logs"
+  bucket        = "${var.project_name}-${var.env}-${data.aws_caller_identity.current.account_id}-${data.aws_region.current.name}-cloudtrail-logs"
   force_destroy = true
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.env
+    AccountID   = data.aws_caller_identity.current.account_id
+    Region      = data.aws_region.current.name
+  }
 }
 
 # CloudTrail configuration

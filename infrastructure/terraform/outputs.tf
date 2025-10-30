@@ -24,6 +24,18 @@ output "cloudtrail_bucket" {
   value       = module.security.cloudtrail_bucket
 }
 
+#################
+# Filevault meta tags
+
+output "filevault_files_name" {
+  value = module.storage.filevault_files_name
+}
+
+output "filevault_files_arn" {
+  value = module.storage.filevault_files_arn
+}
+
+
 # =====================
 # Networking
 # =====================
