@@ -61,6 +61,12 @@ class FileService {
           },
         }
       );
+      
+      // 🔍 Debug: Log the response
+      console.log("📥 Backend response:", response.data);
+      console.log("🔑 Required headers received:", response.data.requiredHeaders);
+      console.log("📎 Upload URL:", response.data.uploadUrl);
+      
       return response.data;
     } catch (error: any) {
       console.error("Error getting upload URL:", error);
@@ -85,11 +91,19 @@ class FileService {
     onProgress?: (progress: FileUploadProgress) => void
   ): Promise<void> {
     try {
+      // 🔍 Debug: Log what we're sending
+      const headersToSend = {
+        "Content-Type": file.type,
+        ...requiredHeaders,
+      };
+      console.log("📤 Headers being sent to S3:", headersToSend);
+      console.log("📤 Upload URL:", uploadUrl);
+      console.log("📦 File type:", file.type);
+      console.log("📦 File size:", file.size);
+      console.log("📦 File name:", file.name);
+      
       await axios.put(uploadUrl, file, {
-        headers: {
-          "Content-Type": file.type,
-          ...requiredHeaders, // 🔑 include KMS headers
-        },
+        headers: headersToSend,
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total && onProgress) {
             const progress: FileUploadProgress = {
@@ -101,11 +115,18 @@ class FileService {
           }
         },
       });
+      
+      console.log("✅ Upload successful!");
     } catch (error: any) {
-      console.error("Error uploading file to S3:", error);
-      console.error("Response status:", error.response?.status);
-      console.error("Response data:", error.response?.data);
-      console.error("Upload URL used:", uploadUrl);
+      console.error("❌ Error uploading file to S3:", error);
+      console.error("📊 Response status:", error.response?.status);
+      console.error("📄 Response data:", error.response?.data);
+      console.error("🔗 Upload URL used:", uploadUrl);
+      console.error("📋 Headers that were sent:", {
+        "Content-Type": file.type,
+        ...requiredHeaders,
+      });
+      console.error("🔍 Required headers received:", requiredHeaders);
 
       if (error.response?.status === 403) {
         throw new Error("Access denied. The upload URL may be expired or invalid.");
@@ -125,12 +146,18 @@ class FileService {
     targetUserId?: string
   ): Promise<{ fileKey: string; fileName: string; fileSize: number }> {
     try {
+      console.log("🚀 Starting upload process for:", file.name);
+      console.log("📦 File details:", { name: file.name, type: file.type, size: file.size });
+      
       // Step 1: Get upload URL + required headers (with optional targetUserId)
       const { uploadUrl, fileKey, requiredHeaders } = await this.getUploadUrl(
         file.name,
         file.type,
         targetUserId
       );
+
+      console.log("✅ Got upload URL and headers");
+      console.log("🔑 Required headers:", requiredHeaders);
 
       // Step 2: Upload file to S3 with headers
       await this.uploadFile(file, uploadUrl, requiredHeaders, onProgress);
@@ -212,6 +239,10 @@ class FileService {
         // The backend expects just the filename without the user path
         const keyParts = fileKey.split('/');
         downloadFileId = keyParts[keyParts.length - 1]; // Get the last part (filename)
+      }
+
+      if (!downloadFileId) {
+        throw new Error("File ID could not be determined from fileKey or fileId");
       }
 
       console.log("🔗 Getting download URL for file:", downloadFileId);

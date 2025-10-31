@@ -1,14 +1,13 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import React from "react";
+import { Toaster } from "sonner";
+import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import InactivityWarning from "@/components/InactivityWarning";
 import Index from "./pages/Index";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
+import Auth from "./pages/Auth";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
@@ -17,7 +16,7 @@ import Profile from "./pages/Profile";
 import Files from "./pages/Files";
 import Users from "./pages/Users";
 import ManageRoles from "./pages/ManageRoles";
-import NotFound from "./pages/NotFound";
+import NotFound from "@/pages/NotFound";
 import "@/config/aws-config";
 
 const queryClient = new QueryClient();
@@ -35,11 +34,18 @@ const AppContent = () => {
 
   return (
     <>
+      {/* App background with subtle animated gradient (non-interactive, behind content) */}
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-secondary">
+        <div className="absolute inset-0 opacity-60">
+          <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-primary/20 blur-3xl animate-in fade-in-50" />
+          <div className="absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl animate-in fade-in-50 delay-150" />
+        </div>
+      </div>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<Auth key="login" initialMode="login" />} />
+          <Route path="/register" element={<Auth key="signup" initialMode="signup" />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route 
@@ -110,7 +116,6 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <Toaster />
-        <Sonner />
         <AppContent />
       </AuthProvider>
     </TooltipProvider>

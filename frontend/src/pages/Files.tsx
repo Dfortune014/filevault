@@ -87,7 +87,7 @@ const Files = () => {
     switch (role) {
       case "Admin":
         return {
-          color: "bg-red-500 text-white",
+          color: "!bg-red-500 !text-white",
           variant: "destructive" as const,
           icon: Shield,
           permissions: ["Upload Files", "Download Files", "Delete Files", "Manage Users"],
@@ -95,7 +95,7 @@ const Files = () => {
         };
       case "Editor":
         return {
-          color: "bg-blue-500 text-white",
+          color: "!bg-blue-500 !text-white",
           variant: "default" as const,
           icon: Edit3,
           permissions: ["Upload Files", "Download Files"],
@@ -103,7 +103,7 @@ const Files = () => {
         };
       case "Viewer":
         return {
-          color: "bg-green-500 text-white",
+          color: "!bg-green-500 !text-white",
           variant: "secondary" as const,
           icon: Eye,
           permissions: ["Upload Files", "Download Files"],
@@ -111,7 +111,7 @@ const Files = () => {
         };
       default:
         return {
-          color: "bg-gray-500 text-white",
+          color: "!bg-gray-500 !text-white",
           variant: "secondary" as const,
           icon: UserCheck,
           permissions: [],
@@ -395,11 +395,12 @@ const Files = () => {
 
   return (
     <SidebarProvider>
+      <div className="flex min-h-screen overflow-x-hidden">
       <Sidebar>
         <SidebarHeader>
-          <div className="flex items-center space-x-2 px-2">
-            <Shield className="h-6 w-6 text-primary" />
-            <span className="text-lg font-bold">FileVault</span>
+          <div className="flex items-center space-x-2">
+            <Shield className="h-5 w-5 md:h-6 md:w-6 text-primary shrink-0" />
+            <span className="text-base md:text-lg font-bold whitespace-nowrap">FileVault</span>
           </div>
         </SidebarHeader>
         
@@ -409,8 +410,8 @@ const Files = () => {
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton onClick={() => navigate("/dashboard")} className="flex items-center space-x-2">
-                    <Home className="h-4 w-4" />
+                  <SidebarMenuButton onClick={() => navigate("/dashboard")}>
+                    <Home className="h-4 w-4 md:h-[1.15rem] md:w-[1.15rem]" />
                     <span>Dashboard</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -423,15 +424,15 @@ const Files = () => {
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton onClick={() => navigate("/files")} className="flex items-center space-x-2">
-                    <FileText className="h-4 w-4" />
+                  <SidebarMenuButton onClick={() => navigate("/files")}>
+                    <FileText className="h-4 w-4 md:h-[1.15rem] md:w-[1.15rem]" />
                     <span>View All Files</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 {canUpload && (
                   <SidebarMenuItem>
-                    <SidebarMenuButton onClick={() => navigate("/upload")} className="flex items-center space-x-2">
-                      <Upload className="h-4 w-4" />
+                    <SidebarMenuButton onClick={() => navigate("/upload")}>
+                      <Upload className="h-4 w-4 md:h-[1.15rem] md:w-[1.15rem]" />
                       <span>Upload Files</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -446,14 +447,14 @@ const Files = () => {
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarMenuItem>
-                    <SidebarMenuButton onClick={() => navigate("/users")} className="flex items-center space-x-2">
-                      <Users className="h-4 w-4" />
+                    <SidebarMenuButton onClick={() => navigate("/users")}>
+                      <Users className="h-4 w-4 md:h-[1.15rem] md:w-[1.15rem]" />
                       <span>Manage Users</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton onClick={() => navigate("/manage-roles")} className="flex items-center space-x-2">
-                      <Users className="h-4 w-4" />
+                    <SidebarMenuButton onClick={() => navigate("/manage-roles")}>
+                      <Users className="h-4 w-4 md:h-[1.15rem] md:w-[1.15rem]" />
                       <span>Manage Roles</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -466,8 +467,8 @@ const Files = () => {
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton className="flex items-center space-x-2">
-                <Activity className="h-4 w-4" />
+              <SidebarMenuButton>
+                <Activity className="h-4 w-4 md:h-[1.15rem] md:w-[1.15rem]" />
                 <span>Recent Activity</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -477,27 +478,27 @@ const Files = () => {
 
       <SidebarInset>
         {/* Header */}
-        <header className="border-b bg-card shadow-sm">
-          <div className="flex h-16 items-center px-4">
-            <SidebarTrigger className="-ml-1" />
+        <header className="border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60 shadow-sm sticky top-0 z-10">
+          <div className="flex h-14 md:h-16 items-center px-3 md:px-4 lg:px-6">
+            <SidebarTrigger />
             <div className="flex-1" />
             
             {/* User Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center space-x-2 h-auto p-2">
-                  <Avatar className="h-8 w-8">
+                <Button variant="ghost" className="flex items-center gap-2 h-9 md:h-10 px-2 md:px-3 shrink-0">
+                  <Avatar className="h-7 w-7 md:h-8 md:w-8 shrink-0">
                     <AvatarFallback className="bg-primary text-primary-foreground">
                       {user?.email?.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <Badge 
-                    className={`${roleConfig.color} text-xs`}
+                    className={`${roleConfig.color} text-xs shrink-0 hidden sm:inline-flex`}
                   >
                     <RoleIcon className="h-2 w-2 mr-1" />
                     {user?.role}
                   </Badge>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -534,25 +535,26 @@ const Files = () => {
           </div>
         </header>
 
-        <div className="flex-1 p-6">
-          {/* Header Section */}
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold mb-2">
-              {user?.role === "Admin" ? "All Files" : 
-               user?.role === "Editor" ? "My Files & Delegated Files" : 
-               "My Files"}
-            </h2>
-            <p className="text-muted-foreground">
-              {user?.role === "Admin" ? "View and manage all files in your FileVault" :
-               user?.role === "Editor" ? "View your files and files from delegated users" :
-               "Upload, view and download your files"}
-            </p>
-          </div>
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-4 sm:p-6 lg:p-8">
+            {/* Header Section */}
+            <div className="mb-6 md:mb-8">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">
+                {user?.role === "Admin" ? "All Files" : 
+                 user?.role === "Editor" ? "My Files & Delegated Files" : 
+                 "My Files"}
+              </h2>
+              <p className="text-sm sm:text-base text-muted-foreground">
+                {user?.role === "Admin" ? "View and manage all files in your FileVault" :
+                 user?.role === "Editor" ? "View your files and files from delegated users" :
+                 "Upload, view and download your files"}
+              </p>
+            </div>
 
           {/* Search and Stats */}
           <div className="mb-6 space-y-4">
-            <div className="flex items-center space-x-4">
-              <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:space-x-4">
+              <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   placeholder="Search files..."
@@ -561,22 +563,22 @@ const Files = () => {
                   className="pl-10"
                 />
               </div>
-              <Button onClick={loadFiles} variant="outline">
+              <Button onClick={loadFiles} variant="outline" className="w-full sm:w-auto shrink-0">
                 Refresh
               </Button>
             </div>
             
-            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
               <div className="flex items-center space-x-1">
-                <FilesIcon className="h-4 w-4" />
+                <FilesIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span>{filteredFiles.length} files</span>
               </div>
               <div className="flex items-center space-x-1">
-                <UsersIcon className="h-4 w-4" />
+                <UsersIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span>{Object.keys(groupedFiles).length} user{Object.keys(groupedFiles).length !== 1 ? 's' : ''}</span>
               </div>
               <div className="flex items-center space-x-1">
-                <HardDrive className="h-4 w-4" />
+                <HardDrive className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span>
                   {fileService.formatFileSize(
                     filteredFiles.reduce((total, file) => total + (file.size || 0), 0)
@@ -738,8 +740,10 @@ const Files = () => {
               )}
             </CardContent>
           </Card>
+          </div>
         </div>
       </SidebarInset>
+      </div>
     </SidebarProvider>
   );
 };

@@ -43,8 +43,8 @@ const InactivityWarning: React.FC<InactivityWarningProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={() => {}} modal>
-      <DialogContent className="sm:max-w-md" hideClose>
+    <Dialog open={isOpen} onOpenChange={() => {}}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2 text-orange-600">
             <AlertTriangle className="h-5 w-5" />

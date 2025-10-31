@@ -121,17 +121,26 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-secondary p-4">
+    <div className="relative min-h-screen flex items-center justify-center p-4">
+      {/* Background image with overlay */}
+      <div
+        className="pointer-events-none absolute inset-0 -z-10 bg-cover bg-center"
+        style={{
+          backgroundImage:
+            "url('https://images.unsplash.com/photo-1556157382-97eda2d62296?q=80&w=1920&auto=format&fit=crop')",
+        }}
+      />
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-black/40" />
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
-          <Link to="/" className="flex items-center justify-center space-x-2 text-primary mb-4 hover:opacity-80 transition-opacity">
+          <Link to="/" className="flex items-center justify-center space-x-2 text-white mb-4 hover:opacity-90 transition-opacity">
             <Shield className="h-8 w-8" />
             <h1 className="text-3xl font-bold">FileVault</h1>
           </Link>
-          <p className="text-muted-foreground">Create your secure account</p>
+          <p className="text-white/80">Create your secure account</p>
         </div>
 
-        <Card className="shadow-lg border-0">
+        <Card className="shadow-lg border-0 backdrop-blur bg-white/90">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-semibold flex items-center space-x-2">
               {showVerification ? (

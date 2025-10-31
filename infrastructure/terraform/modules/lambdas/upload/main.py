@@ -2,7 +2,7 @@ import os
 import json
 import boto3
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from boto3.dynamodb.conditions import Key
 from botocore.client import Config
 
@@ -38,6 +38,7 @@ def log_event(event_type, actor, target=None, file_id=None, status="SUCCESS", de
     }
     print("AUDIT_LOG:", json.dumps(record))
     table.put_item(Item=record)
+
 
 def handler(event, context):
     print("DEBUG event:", json.dumps(event))
@@ -77,8 +78,8 @@ def handler(event, context):
     upload_user_id = user_id
     upload_user_email = user_email
 
+    # --- Handle delegated upload (Admin/Editor uploading for someone else) ---
     try:
-        # Uploading for another user (delegation)
         if target_user_id and target_user_id != user_id:
             resp = users_table.get_item(Key={"userId": target_user_id})
             target_user = resp.get("Item")
@@ -117,6 +118,7 @@ def handler(event, context):
     file_id = str(uuid.uuid4())
     s3_key = f"uploads/{upload_user_id}/{filename}"
 
+    # --- Generate S3 Presigned URL ---
     try:
         params = {
             "Bucket": BUCKET_NAME,
@@ -126,11 +128,24 @@ def handler(event, context):
         }
         if KMS_KEY_ID:
             params["SSEKMSKeyId"] = KMS_KEY_ID
-        presigned_url = s3.generate_presigned_url("put_object", Params=params, ExpiresIn=3600, HttpMethod="PUT")
+
+        required_headers = {
+            "x-amz-server-side-encryption": "aws:kms",
+        }
+        if KMS_KEY_ID:
+            required_headers["x-amz-server-side-encryption-aws-kms-key-id"] = KMS_KEY_ID
+
+        presigned_url = s3.generate_presigned_url(
+            "put_object",
+            Params=params,
+            ExpiresIn=3600,
+            HttpMethod="PUT"
+        )
     except Exception as e:
         print(f"ERROR generating presigned URL: {e}")
         return response(500, {"error": "Failed to generate upload URL", "details": str(e)})
 
+    # --- Record upload metadata ---
     try:
         files_table.put_item(Item={
             "fileId": file_id,
@@ -156,21 +171,21 @@ def handler(event, context):
                   details={"error": str(e)}, ip=ip)
         return response(500, {"error": "Failed to write metadata", "details": str(e)})
 
+    # ✅ Return presigned URL + headers
     return response(200, {
         "uploadUrl": presigned_url,
         "fileKey": s3_key,
         "fileId": file_id,
         "targetOwner": upload_user_email,
-        "requiredHeaders": {
-            "x-amz-server-side-encryption": "aws:kms",
-            "x-amz-server-side-encryption-aws-kms-key-id": KMS_KEY_ID,
-        },
+        "requiredHeaders": required_headers,
     })
+
 
 def response(status, body):
     return {
         "statusCode": status,
         "headers": {
+            "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "Content-Type,Authorization",
             "Access-Control-Allow-Methods": "POST,OPTIONS",

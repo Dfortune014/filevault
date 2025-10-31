@@ -223,11 +223,11 @@ const Upload = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'success':
-        return <Badge className="bg-green-500 text-white">Success</Badge>;
+        return <Badge className="!bg-green-500 !text-white">Success</Badge>;
       case 'error':
-        return <Badge className="bg-red-500 text-white">Error</Badge>;
+        return <Badge className="!bg-red-500 !text-white">Error</Badge>;
       case 'uploading':
-        return <Badge className="bg-blue-500 text-white">Uploading</Badge>;
+        return <Badge className="!bg-blue-500 !text-white">Uploading</Badge>;
       default:
         return <Badge variant="outline">Pending</Badge>;
     }

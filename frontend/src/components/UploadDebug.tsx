@@ -38,7 +38,8 @@ const UploadDebug = () => {
               exp: new Date(payload.exp * 1000).toISOString(),
             };
           } catch (decodeError) {
-            tokenClaims = { decodeError: decodeError.message };
+            const message = decodeError instanceof Error ? decodeError.message : String(decodeError);
+            tokenClaims = { decodeError: message };
           }
         }
         
@@ -57,13 +58,14 @@ const UploadDebug = () => {
           userGroups: tokenClaims?.groups || [],
         };
       } catch (error) {
-        authInfo = { error: error.message };
+        const message = error instanceof Error ? error.message : String(error);
+        authInfo = { error: message };
       }
 
       // Test API call
       let apiTest = null;
       try {
-        const result = await fileService.getUploadUrl();
+        const result = await fileService.getUploadUrl("debug.txt", "text/plain");
         apiTest = { success: true, result };
       } catch (error: any) {
         apiTest = {
@@ -81,7 +83,8 @@ const UploadDebug = () => {
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      setDebugInfo({ error: error.message });
+      const message = error instanceof Error ? error.message : String(error);
+      setDebugInfo({ error: message });
     } finally {
       setLoading(false);
     }

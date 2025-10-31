@@ -75,7 +75,9 @@ resource "aws_iam_role_policy" "upload_policy" {
         Effect = "Allow",
         Action = [
           "kms:Encrypt",
-          "kms:GenerateDataKey*"
+          "kms:Decrypt",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey"
         ],
         Resource = "arn:aws:kms:${var.region}:${var.account_id}:key/${var.kms_key_id}"
       }
