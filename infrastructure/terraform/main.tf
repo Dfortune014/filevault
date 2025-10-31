@@ -66,3 +66,40 @@ module "lambdas" {
   deletion_audit_table_name = module.storage.deletion_audit_table_name
   deletion_audit_table_arn  = module.storage.deletion_audit_table_arn
 }
+
+# ───────────────────────────────────────────
+# KMS Key Policy - Grant Lambda Access
+# ───────────────────────────────────────────
+resource "aws_kms_key_policy" "filevault" {
+  key_id = module.storage.kms_key_id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "Enable Lambda Upload Access"
+        Effect = "Allow"
+        Principal = {
+          AWS = module.lambdas.upload_role_arn
+        }
+        Action = [
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "Enable Root Account Access"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action = [
+          "kms:*"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}

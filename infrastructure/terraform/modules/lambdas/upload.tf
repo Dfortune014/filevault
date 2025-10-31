@@ -107,7 +107,7 @@ resource "aws_lambda_function" "upload" {
 
   environment {
     variables = {
-      BUCKET_NAME         = var.bucket_name
+      FILES_BUCKET        = var.bucket_name
       KMS_KEY_ID          = var.kms_key_id
       FILES_TABLE         = var.files_table_name
       USERS_TABLE         = var.users_table_name
@@ -133,4 +133,9 @@ resource "aws_lambda_permission" "allow_apigw_upload" {
 output "upload_lambda_arn" {
   description = "ARN of the secure-file-upload Lambda function"
   value       = aws_lambda_function.upload.arn
+}
+
+output "upload_role_arn" {
+  description = "ARN of the secure-file-upload Lambda IAM role"
+  value       = aws_iam_role.upload_role.arn
 }

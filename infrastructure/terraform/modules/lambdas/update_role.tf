@@ -8,7 +8,7 @@ resource "aws_lambda_function" "update_role" {
   role             = aws_iam_role.admin_lambdas_role.arn
   handler          = "main.lambda_handler"
 
-  filename         = "${path.module}/update-role.zip"
+  filename         = "${path.module}/update_role.zip"
   source_code_hash = filebase64sha256("${path.module}/update-role/main.py")
 
   environment {
