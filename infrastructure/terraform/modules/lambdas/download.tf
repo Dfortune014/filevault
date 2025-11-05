@@ -44,7 +44,12 @@ resource "aws_iam_role_policy" "download_policy" {
       {
         Effect = "Allow",
         Action = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan"],
-        Resource = [var.files_table_arn, var.users_table_arn]
+        Resource = [
+          var.files_table_arn,
+          var.users_table_arn,
+          "${var.files_table_arn}/index/*",
+          "${var.users_table_arn}/index/*"
+        ]
       }
     ]
   })

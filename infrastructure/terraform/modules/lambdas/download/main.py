@@ -65,21 +65,45 @@ def handler(event, context):
         owner_email = file_item.get("ownerEmail")
         s3_key = file_item.get("s3Key")
 
+        # Validate required fields
+        if not s3_key:
+            print(f"❌ ERROR: File {file_id} missing s3Key")
+            log_event("DownloadFailed", {"id": user_id, "email": user_email},
+                      file_id=file_id, status="FAILED",
+                      details={"reason": "File missing s3Key"}, ip=ip)
+            return response(500, {"error": "File metadata incomplete: missing s3Key"})
+
+        print(f"DEBUG File metadata: ownerId={owner_id}, ownerEmail={owner_email}, s3Key={s3_key}")
+
         # --- Authorization ---
         allowed = False
         if "Admins" in groups:
             allowed = True
+            print(f"DEBUG Admin access granted")
         elif "Editors" in groups:
-            delegated = users_table.query(
-                IndexName="delegatedEditor-index",
-                KeyConditionExpression=Key("delegatedEditor").eq(user_id)
-            ).get("Items", [])
-            delegated_ids = [v["userId"] for v in delegated]
-            allowed = (owner_id == user_id) or (owner_id in delegated_ids)
+            try:
+                delegated_resp = users_table.query(
+                    IndexName="delegatedEditor-index",
+                    KeyConditionExpression=Key("delegatedEditor").eq(user_id)
+                )
+                delegated = delegated_resp.get("Items", [])
+                delegated_ids = [v.get("userId") for v in delegated if v.get("userId")]
+                print(f"DEBUG Editor {user_id}: delegated_ids={delegated_ids}, owner_id={owner_id}")
+                allowed = (owner_id == user_id) or (owner_id in delegated_ids)
+                if not allowed:
+                    print(f"⚠️ WARNING: Editor {user_id} not authorized for file {file_id} (owner: {owner_id})")
+            except Exception as e:
+                print(f"❌ ERROR querying delegated users: {e}")
+                log_event("DownloadFailed", {"id": user_id, "email": user_email},
+                          file_id=file_id, status="FAILED",
+                          details={"error": f"Failed to verify delegation: {str(e)}"}, ip=ip)
+                return response(500, {"error": "Failed to verify authorization", "details": str(e)})
         elif "Viewers" in groups:
             allowed = (owner_id == user_id)
+            print(f"DEBUG Viewer access: owner_id={owner_id}, user_id={user_id}, allowed={allowed}")
 
         if not allowed:
+            print(f"❌ UNAUTHORIZED: User {user_id} ({user_email}) not allowed to download file {file_id}")
             log_event("UnauthorizedDownloadAttempt",
                       {"id": user_id, "email": user_email},
                       target={"id": owner_id}, file_id=file_id,
@@ -87,11 +111,19 @@ def handler(event, context):
             return response(403, {"error": "Not authorized to access this file"})
 
         # --- Generate presigned URL ---
-        url = s3.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": BUCKET, "Key": s3_key},
-            ExpiresIn=3600, HttpMethod="GET"
-        )
+        try:
+            url = s3.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": BUCKET, "Key": s3_key},
+                ExpiresIn=3600, HttpMethod="GET"
+            )
+            print(f"✅ Generated presigned URL for file {file_id}")
+        except Exception as e:
+            print(f"❌ ERROR generating presigned URL: {e}")
+            log_event("DownloadFailed", {"id": user_id, "email": user_email},
+                      file_id=file_id, status="FAILED",
+                      details={"error": f"Failed to generate presigned URL: {str(e)}"}, ip=ip)
+            return response(500, {"error": "Failed to generate download URL", "details": str(e)})
 
         log_event("FileDownloaded",
                   {"id": user_id, "email": user_email},
