@@ -16,7 +16,8 @@ const ResetPassword = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { resetPassword } = useAuth();
+  const [resendLoading, setResendLoading] = useState(false);
+  const { resetPassword, forgotPassword } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
@@ -27,6 +28,34 @@ const ResetPassword = () => {
       setEmail(emailParam);
     }
   }, [searchParams]);
+
+  const handleResendCode = async () => {
+    if (!email) {
+      toast({
+        title: "Error",
+        description: "Please enter your email address first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setResendLoading(true);
+    try {
+      await forgotPassword(email);
+      toast({
+        title: "Reset Code Resent",
+        description: "A new password reset code has been sent to your email.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to resend reset code. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setResendLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,6 +82,21 @@ const ResetPassword = () => {
       toast({
         title: "Error",
         description: "Password must be at least 8 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check password requirements
+    const hasUpperCase = /[A-Z]/.test(newPassword);
+    const hasLowerCase = /[a-z]/.test(newPassword);
+    const hasNumber = /[0-9]/.test(newPassword);
+    const hasSymbol = /[^A-Za-z0-9]/.test(newPassword);
+
+    if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSymbol) {
+      toast({
+        title: "Password Requirements",
+        description: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.",
         variant: "destructive",
       });
       return;
@@ -95,7 +139,7 @@ const ResetPassword = () => {
               <span>Reset Password</span>
             </CardTitle>
             <CardDescription>
-              Enter the reset code from your email and create a new password
+              Enter the reset code from your email and create a new password. The code is 6 digits.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -113,13 +157,26 @@ const ResetPassword = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="code">Reset Code</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="code">Reset Code</Label>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    onClick={handleResendCode}
+                    disabled={resendLoading || !email}
+                    className="h-auto p-0 text-sm"
+                  >
+                    {resendLoading ? "Sending..." : "Resend Code"}
+                  </Button>
+                </div>
                 <Input
                   id="code"
                   type="text"
                   placeholder="Enter the 6-digit code from your email"
                   value={code}
-                  onChange={(e) => setCode(e.target.value)}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  maxLength={6}
                   required
                 />
               </div>
@@ -130,7 +187,7 @@ const ResetPassword = () => {
                   <Input
                     id="newPassword"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Enter your new password (min 8 characters)"
+                    placeholder="Enter your new password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
@@ -149,6 +206,9 @@ const ResetPassword = () => {
                     )}
                   </Button>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Must be at least 8 characters with uppercase, lowercase, number, and symbol
+                </p>
               </div>
               
               <div className="space-y-2">

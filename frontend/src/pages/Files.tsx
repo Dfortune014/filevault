@@ -165,12 +165,10 @@ const Files = () => {
       case "Editor":
         // Backend already filters files for Editors (own + delegated)
         // Just return all files sent by backend
-        console.log("🧩 Editor: Trusting backend delegation filtering");
         return allFiles;
       case "Viewer":
         // Backend already filters files for Viewers (own only)
         // Just return all files sent by backend
-        console.log("🧩 Viewer: Trusting backend file filtering");
         return allFiles;
       default:
         return [];
@@ -246,13 +244,11 @@ const Files = () => {
   const loadUsers = async () => {
     // Only load users for Admin and Editor roles (they need delegation info)
     if (!user || (user.role !== "Admin" && user.role !== "Editor")) {
-      console.log("🔒 Skipping users load - not Admin or Editor role");
       return [];
     }
 
     try {
       const response = await userService.listUsers();
-      console.log("📋 Users loaded in Files page:", response.users);
       // Normalize user data to match expected interface
       const rawUsers = response.users || [];
       const users = rawUsers.map((user: any) => ({
@@ -268,9 +264,7 @@ const Files = () => {
       setUsers(users);
       return users;
     } catch (err: any) {
-      console.error("❌ Error loading users:", err);
-      console.log("🔒 Users endpoint restricted - falling back to basic file filtering");
-      // Don't show error toast for users loading failure, just log it
+      // Don't show error toast for users loading failure
       return [];
     }
   };
@@ -282,18 +276,13 @@ const Files = () => {
       
       // Load files first
       const filesResponse = await fileService.listFiles();
-      console.log("📋 Files loaded in Files page:", filesResponse.files);
       setFiles(filesResponse.files || []);
       
       // Only load users for Admins (they need it for user management UI)
       if (user?.role === "Admin") {
-        const usersData = await loadUsers();
-        console.log("👥 Users loaded in Files page:", usersData);
-      } else {
-        console.log("🧩 Skipping user fetch — backend handles delegation for Editors/Viewers");
+        await loadUsers();
       }
     } catch (err: any) {
-      console.error("❌ Error loading files:", err);
       setError(err.message);
       toast({
         title: "Error",
@@ -318,15 +307,12 @@ const Files = () => {
         throw new Error("File name is missing. Cannot download this file.");
       }
 
-      console.log("📁 Downloading file:", file);
-      
       await fileService.downloadFile(file.key, file.fileName, file.fileId);
       toast({
         title: "Success",
         description: `Downloading ${file.fileName}`,
       });
     } catch (err: any) {
-      console.error("❌ Download error:", err);
       toast({
         title: "Download Failed",
         description: err.message || "Failed to download file",
@@ -677,7 +663,6 @@ const Files = () => {
                                 </TableHeader>
                                 <TableBody>
                                   {ownerFiles.map((file) => {
-                                    console.log("🔍 Rendering file in table:", file);
                                     return (
                                     <TableRow key={file.key || file.fileName}>
                                       <TableCell>

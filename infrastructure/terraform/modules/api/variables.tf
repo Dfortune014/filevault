@@ -41,3 +41,8 @@ variable "get_delegated_users_lambda_arn" {
 variable "admin_delete_lambda_arn" {
   description = "ARN of the secure-file-admin-delete Lambda function"
 }
+variable "allowed_origins" {
+  description = "List of allowed CORS origins"
+  type        = list(string)
+  default     = ["*"]  
+}

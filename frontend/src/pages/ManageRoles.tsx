@@ -139,18 +139,8 @@ const ManageRoles = () => {
       setLoading(true);
       setError(null);
       const response = await userService.listUsers();
-      console.log("📋 Users loaded in ManageRoles page:", response.users);
       // Normalize user data to match expected interface
       const rawUsers = response.users || [];
-      console.log("🔧 ManageRoles - Raw API response structure:", rawUsers.map(u => ({
-        userId: u.userId,
-        email: u.email,
-        sub: u.sub,
-        id: u.id,
-        fullName: u.fullName,
-        name: u.name,
-        role: u.role
-      })));
       const users = rawUsers.map((user: any) => ({
         id: user.sub || user.userId || user.id, // Use sub claim if available, fallback to userId
         email: user.email || user.userId || 'Unknown',
@@ -163,7 +153,6 @@ const ManageRoles = () => {
       }));
       setUsers(users);
     } catch (err: any) {
-      console.error("❌ Error loading users:", err);
       setError(err.message);
       toast({
         title: "Error",

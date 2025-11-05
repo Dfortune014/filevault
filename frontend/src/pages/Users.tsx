@@ -135,21 +135,9 @@ const Users = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log("🔍 Loading users...");
-      console.log("🔧 API Endpoint:", import.meta.env.VITE_API_ENDPOINT);
       const response = await userService.listUsers();
-      console.log("📋 Users response:", response);
       // Normalize user data to match expected interface
       const rawUsers = response.users || [];
-      console.log("🔧 Users - Raw API response structure:", rawUsers.map((u: any) => ({
-        userId: u.userId,
-        email: u.email,
-        sub: u.sub,
-        id: u.id,
-        fullName: u.fullName,
-        name: u.name,
-        role: u.role
-      })));
       const users = rawUsers.map((user: any) => ({
         id: user.sub || user.userId || user.id, // Use sub claim if available, fallback to userId
         email: user.email || user.userId || 'Unknown',
@@ -160,10 +148,8 @@ const Users = () => {
         lastLogin: user.lastLogin || null,
         status: user.status || 'active'
       }));
-      console.log("🔄 Normalized users:", users);
       setUsers(users);
     } catch (err: any) {
-      console.error("❌ Error loading users:", err);
       setError(err.message);
       setUsers([]); // Ensure users is always an array even on error
       toast({
@@ -211,7 +197,8 @@ const Users = () => {
     if (!selectedUser) return;
 
     try {
-      const editorId = selectedEditor === "none" ? undefined : selectedEditor;
+      // Send null explicitly when removing delegation (not undefined, which gets omitted)
+      const editorId = selectedEditor === "none" ? null : selectedEditor;
       await userService.delegateUser(selectedUser.id, { editorId });
       
       const message = editorId 

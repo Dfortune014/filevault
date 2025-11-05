@@ -104,7 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clear any existing timers
       clearTimers();
     } catch (error) {
-      console.error('Auto-logout failed:', error);
+      // Auto-logout error - silently fail
     }
   }, [clearTimers]);
 
@@ -225,10 +225,76 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     try {
-      await signIn({ username: email, password });
+      const signInResult = await signIn({ username: email, password });
+      
+      // Check if signIn returned a challenge (AWS Amplify v6 behavior)
+      // For unverified users, Amplify may return a challenge instead of throwing
+      if (signInResult.nextStep) {
+        const nextStep = signInResult.nextStep;
+        
+        // Check if email verification is required
+        if (nextStep.signInStep === 'CONFIRM_SIGN_UP' || 
+            nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_SMS_CODE' ||
+            (nextStep.signInStep && nextStep.signInStep.includes('CONFIRM'))) {
+          const customError: any = new Error('Your email address needs to be verified before you can sign in. Please check your email for the verification code.');
+          customError.name = 'UserNotConfirmedException';
+          customError.code = 'EMAIL_NOT_VERIFIED';
+          customError.email = email;
+          throw customError;
+        }
+      }
+      
+      // If no challenge, proceed to check auth state
       await checkAuthState();
     } catch (error: any) {
-      throw new Error(error.message || "Login failed");
+      let errorMessage = "Login failed";
+      
+      // Check for UserNotConfirmedException in multiple possible locations
+      // AWS Amplify v6 may structure errors differently
+      // Also check for HTTP 400 errors from Cognito that might contain the error
+      const errorString = JSON.stringify(error);
+      const isUnverified = 
+        error.name === 'UserNotConfirmedException' ||
+        error.cause?.name === 'UserNotConfirmedException' ||
+        error.cause?.code === 'UserNotConfirmedException' ||
+        error.message?.includes('UserNotConfirmedException') ||
+        error.message?.includes('not confirmed') ||
+        error.message?.includes('email is unverified') ||
+        error.message?.includes('email not verified') ||
+        error.message?.includes('verify your email') ||
+        error.message?.includes('Resume is called') ||
+        error.toString().includes('UserNotConfirmedException') ||
+        errorString.includes('UserNotConfirmedException') ||
+        // Check for 400 Bad Request with unverified user indicators
+        (error.message?.includes('400') && (
+          error.message?.includes('unverified') ||
+          errorString.includes('unverified') ||
+          errorString.includes('not confirmed')
+        ));
+      
+      // Special handling for unverified users - throw custom error with email
+      if (isUnverified) {
+        const customError: any = new Error('Your email address needs to be verified before you can sign in. Please check your email for the verification code.');
+        customError.name = 'UserNotConfirmedException';
+        customError.code = 'EMAIL_NOT_VERIFIED';
+        customError.email = email; // Include email for verification redirect
+        throw customError;
+      }
+      
+      if (error.name) {
+        const errorMap: Record<string, string> = {
+          'UserNotFoundException': 'No account found with this email. Please sign up first.',
+          'NotAuthorizedException': 'Incorrect email or password. Please try again.',
+          'PasswordResetRequiredException': 'Password reset is required. Please reset your password.',
+          'TooManyRequestsException': 'Too many attempts. Please try again later.',
+          'LimitExceededException': 'Too many attempts. Please try again later.',
+        };
+        errorMessage = errorMap[error.name] || (error.message || error.name);
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      throw new Error(errorMessage);
     }
   };
 
@@ -245,7 +311,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       });
     } catch (error: any) {
-      throw new Error(error.message || "Registration failed");
+      let errorMessage = "Registration failed";
+      
+      // AWS Amplify/Cognito error handling
+      if (error.name) {
+        const errorMap: Record<string, string> = {
+          'UsernameExistsException': 'An account with this email already exists. Please sign in or use a different email.',
+          'InvalidPasswordException': 'Password does not meet requirements. Please use a stronger password.',
+          'InvalidParameterException': 'Invalid email or password format. Please check your input.',
+          'LimitExceededException': 'Too many attempts. Please try again later.',
+          'NotAuthorizedException': 'Invalid credentials provided.',
+          'ResourceNotFoundException': 'User not found.',
+          'UserNotConfirmedException': 'Please verify your email address before signing in.',
+          'UserNotFoundException': 'User not found.',
+          'AliasExistsException': 'An account with this email already exists.',
+        };
+        errorMessage = errorMap[error.name] || (error.message || error.name);
+      } else if (error.message) {
+        // If there's a message but no name, use the message
+        errorMessage = error.message;
+      } else if (error.toString && typeof error.toString === 'function') {
+        // Fallback to string representation
+        const errorString = error.toString();
+        if (errorString !== '[object Object]') {
+          errorMessage = errorString;
+        }
+      }
+      
+      throw new Error(errorMessage);
     }
   };
 
@@ -253,15 +346,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await amplifyConfirmSignUp({ username: email, confirmationCode: code });
     } catch (error: any) {
-      throw new Error(error.message || "Confirmation failed");
+      let errorMessage = "Confirmation failed";
+      
+      if (error.name) {
+        const errorMap: Record<string, string> = {
+          'CodeMismatchException': 'Invalid verification code. Please check and try again.',
+          'ExpiredCodeException': 'Verification code has expired. Please request a new one.',
+          'NotAuthorizedException': 'Invalid verification code.',
+          'UserNotFoundException': 'User not found.',
+          'LimitExceededException': 'Too many attempts. Please try again later.',
+        };
+        errorMessage = errorMap[error.name] || (error.message || error.name);
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      throw new Error(errorMessage);
     }
   };
 
   const forgotPassword = async (email: string) => {
     try {
+      // AWS Amplify v6 resetPassword returns a result with nextStep
       await amplifyResetPassword({ username: email });
+      
+      // The result contains nextStep information, but we don't need to handle it
+      // The reset code will be sent via email
     } catch (error: any) {
-      throw new Error(error.message || "Failed to send reset code");
+      let errorMessage = "Failed to send reset code";
+      
+      if (error.name) {
+        const errorMap: Record<string, string> = {
+          'UserNotFoundException': 'No account found with this email.',
+          'LimitExceededException': 'Too many attempts. Please try again later.',
+          'InvalidParameterException': 'Invalid email address.',
+          'NotAuthorizedException': 'Unable to send reset code. Please try again.',
+          'TooManyRequestsException': 'Too many requests. Please try again later.',
+        };
+        errorMessage = errorMap[error.name] || (error.message || error.name);
+      } else if (error.message) {
+        errorMessage = error.message;
+      } else if (error.toString && typeof error.toString === 'function') {
+        const errorString = error.toString();
+        if (errorString !== '[object Object]') {
+          errorMessage = errorString;
+        }
+      }
+      
+      throw new Error(errorMessage);
     }
   };
 
@@ -272,8 +404,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         confirmationCode: code,
         newPassword,
       });
+      
+      // Password reset successful - no return value needed
     } catch (error: any) {
-      throw new Error(error.message || "Failed to reset password");
+      let errorMessage = "Failed to reset password";
+      
+      if (error.name) {
+        const errorMap: Record<string, string> = {
+          'CodeMismatchException': 'Invalid verification code. Please check and try again.',
+          'ExpiredCodeException': 'Verification code has expired. Please request a new one.',
+          'InvalidPasswordException': 'Password does not meet requirements. Please use a stronger password (min 8 characters, with uppercase, lowercase, number, and symbol).',
+          'LimitExceededException': 'Too many attempts. Please try again later.',
+          'NotAuthorizedException': 'Invalid verification code or code has expired. Please request a new reset code.',
+          'UserNotFoundException': 'No account found with this email.',
+          'TooManyRequestsException': 'Too many requests. Please try again later.',
+        };
+        errorMessage = errorMap[error.name] || (error.message || error.name);
+      } else if (error.message) {
+        errorMessage = error.message;
+      } else if (error.toString && typeof error.toString === 'function') {
+        const errorString = error.toString();
+        if (errorString !== '[object Object]') {
+          errorMessage = errorString;
+        }
+      }
+      
+      throw new Error(errorMessage);
     }
   };
 
@@ -281,7 +437,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await resendSignUpCode({ username: email });
     } catch (error: any) {
-      throw new Error(error.message || "Failed to resend verification code");
+      let errorMessage = "Failed to resend verification code";
+      
+      if (error.name) {
+        const errorMap: Record<string, string> = {
+          'UserNotFoundException': 'User not found.',
+          'LimitExceededException': 'Too many attempts. Please try again later.',
+          'InvalidParameterException': 'Invalid email address.',
+        };
+        errorMessage = errorMap[error.name] || (error.message || error.name);
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      throw new Error(errorMessage);
     }
   };
 

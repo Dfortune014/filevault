@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, ArrowRight } from "lucide-react";
+import { Shield, ArrowRight, Mail } from "lucide-react";
 
 type AuthProps = {
   initialMode?: "login" | "signup";
@@ -14,15 +14,10 @@ type AuthProps = {
 const Auth: React.FC<AuthProps> = ({ initialMode = "login" }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { login, register } = useAuth();
+  const { login, register, confirmSignUp, resendVerificationCode } = useAuth();
 
   const [mode, setMode] = useState<"login" | "signup">(initialMode);
   const isSignUp = mode === "signup";
-
-  // Sync state when route-provided initialMode changes
-  useEffect(() => {
-    setMode(initialMode);
-  }, [initialMode]);
 
   // Sign in state
   const [loginEmail, setLoginEmail] = useState("");
@@ -35,6 +30,38 @@ const Auth: React.FC<AuthProps> = ({ initialMode = "login" }) => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [signupLoading, setSignupLoading] = useState(false);
+  
+  // Verification state
+  const [showVerification, setShowVerification] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [verificationFromLogin, setVerificationFromLogin] = useState(false);
+
+  // Sync state when route-provided initialMode changes
+  // But don't override if we're showing verification (to prevent resetting from login redirect)
+  useEffect(() => {
+    if (!showVerification) {
+      setMode(initialMode);
+    }
+  }, [initialMode, showVerification]);
+
+  // Check for verification query params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const verifyEmail = urlParams.get('email');
+    const shouldVerify = urlParams.get('verify') === 'true';
+    
+    if (verifyEmail && shouldVerify) {
+      setEmail(verifyEmail);
+      setMode("signup");
+      setShowVerification(true);
+      setVerificationFromLogin(true); // Mark that this is from a login attempt
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
 
   const containerClass = useMemo(() => {
     return [
@@ -57,7 +84,31 @@ const Auth: React.FC<AuthProps> = ({ initialMode = "login" }) => {
       toast({ title: "Welcome back", description: "Signed in successfully" });
       navigate("/dashboard");
     } catch (err: any) {
-      toast({ title: "Sign in failed", description: err.message, variant: "destructive" });
+      // Check if user needs to verify email
+      const needsVerification = 
+        err.name === 'UserNotConfirmedException' || 
+        err.code === 'EMAIL_NOT_VERIFIED' ||
+        err.message?.includes('not confirmed') ||
+        err.message?.includes('verify your email');
+      
+      if (needsVerification) {
+        // Set email for verification and show verification form
+        const emailToUse = err.email || loginEmail;
+        
+        // Set all states at once - React will batch these updates
+        setEmail(emailToUse);
+        setMode("signup");
+        setVerificationFromLogin(true);
+        setShowVerification(true);
+        
+        toast({ 
+          title: "Email Verification Required", 
+          description: "Please verify your email address before signing in. Enter the verification code sent to your email.",
+          variant: "destructive" 
+        });
+      } else {
+        toast({ title: "Sign in failed", description: err.message, variant: "destructive" });
+      }
     } finally {
       setLoginLoading(false);
     }
@@ -80,12 +131,67 @@ const Auth: React.FC<AuthProps> = ({ initialMode = "login" }) => {
     setSignupLoading(true);
     try {
       await register(fullName, email, password);
-      toast({ title: "Account created", description: "Check your email to verify, then sign in." });
-      setMode("login");
+      toast({ title: "Account created", description: "Please check your email for verification code" });
+      setShowVerification(true);
+      setVerificationFromLogin(false); // This is from signup, not login
     } catch (err: any) {
-      toast({ title: "Sign up failed", description: err.message, variant: "destructive" });
+      // Ensure error message is properly extracted
+      const errorMessage = err?.message || err?.toString() || "An error occurred during registration";
+      toast({ 
+        title: "Sign up failed", 
+        description: errorMessage, 
+        variant: "destructive" 
+      });
     } finally {
       setSignupLoading(false);
+    }
+  };
+
+  const handleVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verificationCode) {
+      toast({ title: "Error", description: "Please enter verification code", variant: "destructive" });
+      return;
+    }
+    setVerificationLoading(true);
+    try {
+      await confirmSignUp(email, verificationCode);
+      toast({ title: "Account Verified", description: "Your account has been successfully verified!" });
+      setMode("login");
+      setShowVerification(false);
+      setVerificationCode("");
+      setVerificationFromLogin(false);
+      // If verified from login attempt, show helpful message
+      if (verificationFromLogin) {
+        toast({ 
+          title: "Verification Complete", 
+          description: "You can now sign in with your credentials." 
+        });
+      }
+    } catch (err: any) {
+      toast({ 
+        title: "Verification Failed", 
+        description: err?.message || "Invalid verification code", 
+        variant: "destructive" 
+      });
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setResendLoading(true);
+    try {
+      await resendVerificationCode(email);
+      toast({ title: "Code Resent", description: "A new verification code has been sent to your email." });
+    } catch (err: any) {
+      toast({ 
+        title: "Resend Failed", 
+        description: err?.message || "Failed to resend verification code", 
+        variant: "destructive" 
+      });
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -138,6 +244,14 @@ const Auth: React.FC<AuthProps> = ({ initialMode = "login" }) => {
                   <div className="space-y-2">
                     <Label htmlFor="loginPassword">Password</Label>
                     <Input id="loginPassword" type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="••••••••" required />
+                    <div className="text-right -mt-1">
+                      <Link 
+                        to="/forgot-password" 
+                        className="text-sm text-blue-600 hover:text-blue-700 hover:underline font-semibold transition-colors"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
                   </div>
                   <Button type="submit" className="w-full" variant="hero" disabled={loginLoading}>
                     {loginLoading ? "Signing in..." : "Sign In"}
@@ -151,45 +265,113 @@ const Auth: React.FC<AuthProps> = ({ initialMode = "login" }) => {
                 </form>
               </div>
 
-              {/* Sign Up form */}
+              {/* Sign Up form / Verification form */}
               <div className="flex items-center justify-center p-8">
-                <form
-                  onSubmit={handleSignUp}
-                  className={[
-                    "w-full max-w-sm space-y-4 transition-opacity duration-500",
-                    isSignUp ? "opacity-100" : "opacity-0 pointer-events-none",
-                  ].join(" ")}
-                >
-                  <div>
-                    <h2 className="text-3xl md:text-4xl font-semibold">Create Account</h2>
-                    <p className="text-base text-muted-foreground">Join FileVault securely</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name</Label>
-                    <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Jane Doe" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password</Label>
-                    <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repeat your password" required />
-                  </div>
-                  <Button type="submit" className="w-full" variant="hero" disabled={signupLoading}>
-                    {signupLoading ? "Creating account..." : "Sign Up"}
-                  </Button>
-                  <div className="text-sm text-muted-foreground">
-                    Already have an account?{" "}
-                    <button type="button" onClick={() => setMode("login")} className="text-primary hover:underline">
-                      Sign In
-                    </button>
-                  </div>
-                </form>
+                {showVerification ? (
+                  <form
+                    onSubmit={handleVerification}
+                    className={[
+                      "w-full max-w-sm space-y-4 transition-opacity duration-500",
+                      // Show verification form regardless of mode when showVerification is true
+                      (isSignUp || showVerification) ? "opacity-100" : "opacity-0 pointer-events-none",
+                    ].join(" ")}
+                  >
+                    <div className="text-center mb-4">
+                      <Mail className="h-12 w-12 mx-auto text-primary mb-3" />
+                      <h2 className="text-3xl md:text-4xl font-semibold">Verify Email</h2>
+                      <p className="text-base text-muted-foreground mt-2">
+                        Enter the verification code sent to <strong>{email}</strong>
+                      </p>
+                      {verificationFromLogin && (
+                        <div className="mt-3 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                          <p className="text-sm text-destructive font-medium">
+                            ⚠️ Your account requires email verification before you can sign in.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="verificationCode">Verification Code</Label>
+                      <Input 
+                        id="verificationCode" 
+                        type="text" 
+                        value={verificationCode} 
+                        onChange={(e) => setVerificationCode(e.target.value)} 
+                        placeholder="Enter 6-digit code" 
+                        required 
+                        maxLength={6}
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" variant="hero" disabled={verificationLoading}>
+                      {verificationLoading ? "Verifying..." : "Verify Account"}
+                    </Button>
+                    <div className="text-center space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        Didn't receive the code?
+                      </p>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleResendCode}
+                        disabled={resendLoading}
+                        className="w-full"
+                      >
+                        {resendLoading ? "Resending..." : "Resend Code"}
+                      </Button>
+                    </div>
+                    <div className="text-sm text-muted-foreground text-center">
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setShowVerification(false);
+                          setVerificationCode("");
+                        }} 
+                        className="text-primary hover:underline"
+                      >
+                        Back to Sign Up
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <form
+                    onSubmit={handleSignUp}
+                    className={[
+                      "w-full max-w-sm space-y-4 transition-opacity duration-500",
+                      isSignUp ? "opacity-100" : "opacity-0 pointer-events-none",
+                    ].join(" ")}
+                  >
+                    <div>
+                      <h2 className="text-3xl md:text-4xl font-semibold">Create Account</h2>
+                      <p className="text-base text-muted-foreground">Join FileVault securely</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="fullName">Full Name</Label>
+                      <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Jane Doe" required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password</Label>
+                      <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">Confirm Password</Label>
+                      <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repeat your password" required />
+                    </div>
+                    <Button type="submit" className="w-full" variant="hero" disabled={signupLoading}>
+                      {signupLoading ? "Creating account..." : "Sign Up"}
+                    </Button>
+                    <div className="text-sm text-muted-foreground">
+                      Already have an account?{" "}
+                      <button type="button" onClick={() => setMode("login")} className="text-primary hover:underline">
+                        Sign In
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             </div>
           </div>

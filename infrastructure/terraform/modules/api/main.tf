@@ -8,7 +8,7 @@ resource "aws_apigatewayv2_api" "this" {
   cors_configuration {
     allow_headers = ["Authorization", "Content-Type"]
     allow_methods = ["GET", "PATCH", "POST", "DELETE", "OPTIONS"]
-    allow_origins = ["*"] # later restrict to your frontend domain
+    allow_origins =  var.allowed_origins
   }
 }
 

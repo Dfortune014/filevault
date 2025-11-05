@@ -122,3 +122,32 @@ output "api_execution_arn" {
   description = "Execution ARN of the API Gateway"
   value       = module.api.execution_arn
 }
+
+# =====================
+# Frontend
+# =====================
+output "frontend_bucket_id" {
+  description = "S3 bucket ID for frontend static hosting"
+  value       = module.frontend.bucket_id
+}
+
+output "frontend_url" {
+  description = "Frontend URL (S3 website or CloudFront)"
+  value       = module.frontend.frontend_url
+}
+
+output "frontend_website_endpoint" {
+  description = "S3 website endpoint (when not using CloudFront)"
+  value       = module.frontend.website_endpoint
+}
+
+# CloudFront outputs (null when disabled)
+output "cloudfront_distribution_id" {
+  description = "CloudFront distribution ID"
+  value       = module.frontend.cloudfront_distribution_id
+}
+
+output "cloudfront_url" {
+  description = "CloudFront distribution URL"
+  value       = module.frontend.cloudfront_url
+}

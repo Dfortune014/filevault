@@ -77,21 +77,15 @@ class UserService {
       );
       return response.data;
     } catch (error: any) {
-      console.error("Error updating user:", error);
-      console.error("Response status:", error.response?.status);
-      console.error("Response data:", error.response?.data);
       throw new Error(error.response?.data?.message || "Failed to update user");
     }
   }
 
   async listUsers(): Promise<UsersListResponse> {
     try {
-      console.log("🔧 UserService - API Endpoint:", API_ENDPOINT);
       const token = await this.getAuthToken();
-      console.log("🔑 UserService - Got auth token:", token ? "✅ Present" : "❌ Missing");
 
       const url = `${API_ENDPOINT}/api/users`;
-      console.log("🌐 UserService - Making request to:", url);
 
       const response = await axios.get(url, {
         headers: {
@@ -99,7 +93,6 @@ class UserService {
           "Content-Type": "application/json",
         },
       });
-      console.log("✅ UserService - Response received:", response.data);
       
       // Handle both array response and object with users property
       const data = response.data;
@@ -108,22 +101,15 @@ class UserService {
       }
       return data;
     } catch (error: any) {
-      console.error("❌ UserService - Error listing users:", error);
-      console.error("📊 UserService - Response status:", error.response?.status);
-      console.error("📄 UserService - Response data:", error.response?.data);
-      console.error("🌐 UserService - Request URL:", error.config?.url);
       throw new Error(error.response?.data?.message || "Failed to list users");
     }
   }
 
   async listDelegatedUsers(): Promise<UsersListResponse> {
     try {
-      console.log("🔧 UserService - Fetching delegated users");
       const token = await this.getAuthToken();
-      console.log("🔑 UserService - Got auth token:", token ? "✅ Present" : "❌ Missing");
 
       const url = `${API_ENDPOINT}/api/users/delegated`;
-      console.log("🌐 UserService - Making request to:", url);
 
       const response = await axios.get(url, {
         headers: {
@@ -131,7 +117,6 @@ class UserService {
           "Content-Type": "application/json",
         },
       });
-      console.log("✅ UserService - Delegated users received:", response.data);
       
       // Handle different response formats
       const data = response.data;
@@ -157,10 +142,6 @@ class UserService {
       // Fallback to empty array
       return { users: [], count: 0 };
     } catch (error: any) {
-      console.error("❌ UserService - Error listing delegated users:", error);
-      console.error("📊 UserService - Response status:", error.response?.status);
-      console.error("📄 UserService - Response data:", error.response?.data);
-      console.error("🌐 UserService - Request URL:", error.config?.url);
       throw new Error(error.response?.data?.message || "Failed to list delegated users");
     }
   }
@@ -184,9 +165,6 @@ class UserService {
       );
       return response.data;
     } catch (error: any) {
-      console.error("Error updating user role:", error);
-      console.error("Response status:", error.response?.status);
-      console.error("Response data:", error.response?.data);
       throw new Error(error.response?.data?.message || "Failed to update user role");
     }
   }
@@ -210,9 +188,6 @@ class UserService {
       );
       return response.data;
     } catch (error: any) {
-      console.error("Error delegating user:", error);
-      console.error("Response status:", error.response?.status);
-      console.error("Response data:", error.response?.data);
       throw new Error(error.response?.data?.message || "Failed to delegate user");
     }
   }

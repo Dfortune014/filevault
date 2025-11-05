@@ -46,7 +46,7 @@ const Index = () => {
                   <div className="rounded-md shadow">
                     <Link to="/register">
                       <Button variant="hero" size="lg" className="w-full sm:w-auto">
-                        Start Free Trial
+                        Start for Free
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                     </Link>

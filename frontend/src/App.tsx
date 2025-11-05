@@ -115,7 +115,17 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
-        <Toaster />
+        <Toaster 
+          position="top-center"
+          richColors
+          closeButton
+          duration={5000}
+          toastOptions={{
+            style: {
+              zIndex: 9999,
+            },
+          }}
+        />
         <AppContent />
       </AuthProvider>
     </TooltipProvider>

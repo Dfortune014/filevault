@@ -62,17 +62,8 @@ class FileService {
         }
       );
       
-      // 🔍 Debug: Log the response
-      console.log("📥 Backend response:", response.data);
-      console.log("🔑 Required headers received:", response.data.requiredHeaders);
-      console.log("📎 Upload URL:", response.data.uploadUrl);
-      
       return response.data;
     } catch (error: any) {
-      console.error("Error getting upload URL:", error);
-      console.error("Response status:", error.response?.status);
-      console.error("Response data:", error.response?.data);
-      
       // Handle specific error codes
       if (error.response?.status === 403) {
         throw new Error("You are not authorized to upload for this user.");
@@ -91,16 +82,10 @@ class FileService {
     onProgress?: (progress: FileUploadProgress) => void
   ): Promise<void> {
     try {
-      // 🔍 Debug: Log what we're sending
       const headersToSend = {
         "Content-Type": file.type,
         ...requiredHeaders,
       };
-      console.log("📤 Headers being sent to S3:", headersToSend);
-      console.log("📤 Upload URL:", uploadUrl);
-      console.log("📦 File type:", file.type);
-      console.log("📦 File size:", file.size);
-      console.log("📦 File name:", file.name);
       
       await axios.put(uploadUrl, file, {
         headers: headersToSend,
@@ -115,19 +100,7 @@ class FileService {
           }
         },
       });
-      
-      console.log("✅ Upload successful!");
     } catch (error: any) {
-      console.error("❌ Error uploading file to S3:", error);
-      console.error("📊 Response status:", error.response?.status);
-      console.error("📄 Response data:", error.response?.data);
-      console.error("🔗 Upload URL used:", uploadUrl);
-      console.error("📋 Headers that were sent:", {
-        "Content-Type": file.type,
-        ...requiredHeaders,
-      });
-      console.error("🔍 Required headers received:", requiredHeaders);
-
       if (error.response?.status === 403) {
         throw new Error("Access denied. The upload URL may be expired or invalid.");
       } else if (error.response?.status === 404) {
@@ -146,18 +119,12 @@ class FileService {
     targetUserId?: string
   ): Promise<{ fileKey: string; fileName: string; fileSize: number }> {
     try {
-      console.log("🚀 Starting upload process for:", file.name);
-      console.log("📦 File details:", { name: file.name, type: file.type, size: file.size });
-      
       // Step 1: Get upload URL + required headers (with optional targetUserId)
       const { uploadUrl, fileKey, requiredHeaders } = await this.getUploadUrl(
         file.name,
         file.type,
         targetUserId
       );
-
-      console.log("✅ Got upload URL and headers");
-      console.log("🔑 Required headers:", requiredHeaders);
 
       // Step 2: Upload file to S3 with headers
       await this.uploadFile(file, uploadUrl, requiredHeaders, onProgress);
@@ -168,7 +135,6 @@ class FileService {
         fileSize: file.size,
       };
     } catch (error: any) {
-      console.error("Error in upload process:", error);
       throw error;
     }
   }
@@ -187,14 +153,8 @@ class FileService {
         }
       );
 
-      // Debug: Log the raw backend response
-      console.log("🔍 Raw backend response:", response.data);
-      console.log("📁 Files array:", response.data.files);
-      
       // Map backend response into FileInfo format
-      const mappedFiles = (response.data.files || []).map((f: any, index: number) => {
-        console.log(`📄 File ${index}:`, f);
-        
+      const mappedFiles = (response.data.files || []).map((f: any) => {
         const mappedFile = {
           key: f.s3Key || f.key || f.fileKey || f.id, // Backend returns s3Key, try multiple possible key fields
           fileName: f.fileName || f.name || (f.s3Key ? f.s3Key.split("/").pop() : 'Unknown File'),
@@ -207,7 +167,6 @@ class FileService {
           fileId: f.fileId, // Store the fileId for downloads
         };
         
-        console.log(`✅ Mapped file ${index}:`, mappedFile);
         return mappedFile;
       });
 
@@ -216,9 +175,6 @@ class FileService {
         count: mappedFiles.length,
       };
     } catch (error: any) {
-      console.error("Error listing files:", error);
-      console.error("Response status:", error.response?.status);
-      console.error("Response data:", error.response?.data);
       throw new Error(error.response?.data?.message || "Failed to list files");
     }
   }
@@ -245,9 +201,6 @@ class FileService {
         throw new Error("File ID could not be determined from fileKey or fileId");
       }
 
-      console.log("🔗 Getting download URL for file:", downloadFileId);
-      console.log("📁 Original fileKey:", fileKey);
-
       const response = await axios.get(
         `${API_ENDPOINT}/api/files/${encodeURIComponent(downloadFileId)}/download`,
         {
@@ -258,14 +211,8 @@ class FileService {
         }
       );
       
-      console.log("✅ Download URL response:", response.data);
       return response.data.downloadUrl;
     } catch (error: any) {
-      console.error("❌ Error getting download URL:", error);
-      console.error("📊 Response status:", error.response?.status);
-      console.error("📄 Response data:", error.response?.data);
-      console.error("🔑 File key used:", fileKey);
-      console.error("🆔 File ID used:", fileId);
       throw new Error(error.response?.data?.message || "Failed to get download URL");
     }
   }
@@ -279,8 +226,6 @@ class FileService {
         throw new Error("File name is required for download");
       }
 
-      console.log("⬇️ Starting download for:", fileName, "with key:", fileKey, "fileId:", fileId);
-
       // Get the download URL from the API
       const downloadUrl = await this.getDownloadUrl(fileKey, fileId);
       
@@ -288,8 +233,6 @@ class FileService {
         throw new Error("No download URL received from server");
       }
 
-      console.log("🔗 Download URL received, starting download...");
-      
       // Create a temporary anchor element to trigger download
       const link = document.createElement('a');
       link.href = downloadUrl;
@@ -300,10 +243,7 @@ class FileService {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
-      console.log("✅ Download initiated successfully");
     } catch (error: any) {
-      console.error("❌ Error downloading file:", error);
       throw error; // Re-throw to preserve original error message
     }
   }
@@ -325,9 +265,6 @@ class FileService {
         }
       }
 
-      console.log("🗑️ Deleting file with ID:", id);
-      console.log("🗑️ Original fileKey:", fileKey);
-
       const response = await axios.delete(
         `${API_ENDPOINT}/api/files/${encodeURIComponent(id)}`,
         {
@@ -339,9 +276,6 @@ class FileService {
       );
       return response.data.deleted || fileKey;
     } catch (error: any) {
-      console.error("Error deleting file:", error);
-      console.error("Response status:", error.response?.status);
-      console.error("Response data:", error.response?.data);
       throw new Error(error.response?.data?.message || "Failed to delete file");
     }
   }

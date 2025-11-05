@@ -91,11 +91,9 @@ const Upload = () => {
             status: u.status || 'active'
           }));
           
-          console.log(`📋 Editor: Loaded ${users.length} delegated viewers`);
           setAvailableUsers(users);
         }
       } catch (error: any) {
-        console.error("Error loading users:", error);
         toast({
           title: "Warning",
           description: "Could not load user list. You can still upload to yourself.",

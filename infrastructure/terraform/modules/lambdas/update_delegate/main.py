@@ -49,11 +49,9 @@ def lambda_handler(event, context):
     except Exception:
         body = {}
 
-    delegated_editor_id = (
-        body.get("delegatedEditor")
-        or body.get("editorId")
-        or None
-    )
+    # Check if editorId or delegatedEditor is explicitly provided (even if None)
+    has_editor_id_key = "editorId" in body or "delegatedEditor" in body
+    delegated_editor_id = body.get("delegatedEditor") or body.get("editorId")
 
     if not viewer_id:
         return response(400, {"error": "Missing userId in path parameters"})
@@ -98,7 +96,55 @@ def lambda_handler(event, context):
             return response(500, {"error": "Failed to update delegation", "details": str(e)})
 
     # ============================================================
-    # 🧩 Case 2: Remove all Viewers linked to a demoted Editor
+    # 🧩 Case 2: Remove delegation from a specific Viewer
+    # (when editorId/delegatedEditor is explicitly None/undefined)
+    # ============================================================
+    elif has_editor_id_key:
+        print(f"Removing delegation from Viewer {viewer_id}")
+        try:
+            # First check if the user exists and has a delegation
+            user_item = table.get_item(Key={"userId": viewer_id}).get("Item")
+            if not user_item:
+                return response(404, {"error": f"User {viewer_id} not found"})
+            
+            previous_editor = user_item.get("delegatedEditor")
+            
+            # Remove the delegatedEditor attribute
+            result = table.update_item(
+                Key={"userId": viewer_id},
+                UpdateExpression="REMOVE delegatedEditor SET updatedAt = :t",
+                ExpressionAttributeValues={
+                    ":t": datetime.utcnow().isoformat()
+                },
+                ReturnValues="UPDATED_NEW"
+            )
+            log_event(
+                "DelegationRemoved",
+                actor={"id": actor_id, "email": actor_email},
+                target={"id": viewer_id},
+                details={"previousEditor": previous_editor},
+                ip=ip
+            )
+            print(f"✅ Removed delegation from Viewer {viewer_id}")
+            return response(200, {
+                "message": f"Delegation removed from viewer {viewer_id}",
+                "updated": result.get("Attributes", {})
+            })
+        except Exception as e:
+            print(f"❌ Error removing delegation: {e}")
+            log_event(
+                "DelegationUpdateFailed",
+                actor={"id": actor_id, "email": actor_email},
+                target={"id": viewer_id},
+                status="FAILED",
+                details={"error": str(e), "operation": "remove_delegation"},
+                ip=ip
+            )
+            return response(500, {"error": "Failed to remove delegation", "details": str(e)})
+
+    # ============================================================
+    # 🧩 Case 3: Remove all Viewers linked to a demoted Editor
+    # (when called from update-role Lambda without editorId key)
     # ============================================================
     else:
         print(f"Removing all Viewers assigned to demoted Editor {viewer_id}")

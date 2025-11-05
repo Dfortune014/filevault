@@ -78,25 +78,52 @@ def _list_all_files():
     return resp.get("Items", [])
 
 # ------------------------------------------------------------------
-# 2️⃣ Editor – own + delegated viewers’ files
+# 2️⃣ Editor – own + delegated viewers' files
 def _list_editor_files(editor_id):
-    delegated_resp = users_table.query(
-        IndexName="delegatedEditor-index",
-        KeyConditionExpression=Key("delegatedEditor").eq(editor_id)
-    )
-    delegated_items = delegated_resp.get("Items", [])
-    viewer_ids = [v["userId"] for v in delegated_items]
-    allowed_ids = [editor_id] + viewer_ids
-
-    all_files = []
-    for uid in allowed_ids:
-        q = files_table.query(
-            IndexName="ownerId-index",
-            KeyConditionExpression=Key("ownerId").eq(uid)
+    try:
+        # Get delegated viewers for this editor
+        delegated_resp = users_table.query(
+            IndexName="delegatedEditor-index",
+            KeyConditionExpression=Key("delegatedEditor").eq(editor_id)
         )
-        items = q.get("Items", [])
-        all_files.extend(items)
-    return all_files
+        delegated_items = delegated_resp.get("Items", [])
+        viewer_ids = [v.get("userId") for v in delegated_items if v.get("userId")]
+        
+        # Editor can see their own files + delegated viewers' files
+        allowed_ids = set([editor_id] + viewer_ids)
+        print(f"DEBUG Editor {editor_id} allowed_ids: {allowed_ids}")
+        print(f"DEBUG Delegated viewers: {viewer_ids}")
+        
+        # Collect files for allowed IDs
+        all_files = []
+        for uid in allowed_ids:
+            try:
+                q = files_table.query(
+                    IndexName="ownerId-index",
+                    KeyConditionExpression=Key("ownerId").eq(uid)
+                )
+                items = q.get("Items", [])
+                print(f"DEBUG Found {len(items)} files for uid {uid}")
+                # Double-check ownership before adding (defensive programming)
+                for item in items:
+                    file_owner_id = item.get("ownerId")
+                    if file_owner_id in allowed_ids:
+                        all_files.append(item)
+                    else:
+                        print(f"⚠️ WARNING: Skipping file {item.get('fileId')} with ownerId {file_owner_id} (not in allowed_ids)")
+            except Exception as e:
+                print(f"⚠️ Error querying files for uid {uid}: {e}")
+                # Continue with other IDs even if one fails
+                continue
+        
+        print(f"DEBUG Returning {len(all_files)} files for editor {editor_id}")
+        return all_files
+    except Exception as e:
+        print(f"❌ Error in _list_editor_files: {e}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        # Return empty list on error to prevent unauthorized access
+        return []
 
 # ------------------------------------------------------------------
 # 3️⃣ Viewer – only own files

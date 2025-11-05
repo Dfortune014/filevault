@@ -33,12 +33,12 @@ const ForgotPassword = () => {
       setEmailSent(true);
       toast({
         title: "Reset Code Sent",
-        description: "If an account with this email exists, you will receive a password reset code.",
+        description: "If an account with this email exists, you will receive a password reset code. Please check your email.",
       });
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to send reset code. Please try again.",
+        description: error.message || "Failed to send reset code. Please try again.",
         variant: "destructive",
       });
     } finally {

@@ -26,24 +26,47 @@ def lambda_handler(event, context):
         print(f"⚠️ Missing sub or email for user {username}. Skipping DynamoDB insert.")
         return event
 
-    # 1️⃣ Add user to the "Viewers" group (if not already)
-    try:
-        cognito.admin_add_user_to_group(
-            UserPoolId=user_pool_id,
-            Username=username,
-            GroupName="Viewers"
-        )
-        print(f"✅ Added user {username} to 'Viewers' group.")
-    except cognito.exceptions.ResourceNotFoundException:
-        print(f"⚠️ 'Viewers' group not found in User Pool {user_pool_id}.")
-    except cognito.exceptions.InvalidParameterException as e:
-        print(f"⚠️ Could not add user {username} to group: {e}")
-    except Exception as e:
-        print(f"⚠️ Unexpected error adding user {username} to group: {e}")
-
-    # 2️⃣ Insert or ensure record in DynamoDB
+    # ✅ Check if user already exists in DynamoDB first
     table = dynamodb.Table(USERS_TABLE)
+    try:
+        existing_user = table.get_item(Key={"userId": sub})
+        if "Item" in existing_user:
+            print(f"ℹ️ User {username} ({sub}) already exists in {USERS_TABLE}. Skipping post-confirmation processing to preserve existing group membership.")
+            return event
+    except Exception as e:
+        print(f"⚠️ Error checking if user exists: {e}. Proceeding with new user setup...")
 
+    # ✅ Check existing groups before adding to Viewers
+    try:
+        existing_groups = cognito.admin_list_groups_for_user(
+            UserPoolId=user_pool_id,
+            Username=username
+        ).get("Groups", [])
+        
+        if existing_groups:
+            group_names = [g["GroupName"] for g in existing_groups]
+            print(f"ℹ️ User {username} is already in groups: {group_names}. Skipping group assignment.")
+        else:
+            # User is not in any group, add to Viewers
+            try:
+                cognito.admin_add_user_to_group(
+                    UserPoolId=user_pool_id,
+                    Username=username,
+                    GroupName="Viewers"
+                )
+                print(f"✅ Added user {username} to 'Viewers' group.")
+            except cognito.exceptions.ResourceNotFoundException:
+                print(f"⚠️ 'Viewers' group not found in User Pool {user_pool_id}.")
+            except cognito.exceptions.InvalidParameterException as e:
+                print(f"⚠️ Could not add user {username} to group: {e}")
+            except Exception as e:
+                print(f"⚠️ Unexpected error adding user {username} to group: {e}")
+    except cognito.exceptions.UserNotFoundException:
+        print(f"⚠️ User {username} not found in Cognito. Skipping group assignment.")
+    except Exception as e:
+        print(f"⚠️ Error checking groups for user {username}: {e}")
+
+    # 2️⃣ Insert record in DynamoDB (only for new users)
     item = {
         "userId": sub,              # ✅ Primary key now uses Cognito sub
         "email": email,

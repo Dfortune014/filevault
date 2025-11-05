@@ -27,12 +27,23 @@ module "auth" {
   post_confirmation_lambda_arn = module.lambdas.post_confirmation_arn
 }
 
+# Frontend Module
+module "frontend" {
+  source         = "./modules/frontend"
+  project_name   = var.project_name
+  env            = var.env
+  api_endpoint   = ""
+  region         = var.aws_region
+  enable_cloudfront = false
+}
+
 # API Gateway Module
 module "api" {
   source              = "./modules/api"
   region              = var.aws_region
   user_pool_id        = module.auth.user_pool_id
   user_pool_client_id = module.auth.user_pool_client_id
+  allowed_origins     = ["*"]
 
   # Pass Lambda ARNs into the api module
   upload_lambda_arn          = module.lambdas.upload_lambda_arn
@@ -45,6 +56,7 @@ module "api" {
   get_delegated_users_lambda_arn = module.lambdas.get_delegated_users_lambda_arn
   admin_delete_lambda_arn    = module.lambdas.admin_delete_lambda_arn
 }
+
 
 # Lambda
 module "lambdas" {

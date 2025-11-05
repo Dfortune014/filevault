@@ -11,12 +11,6 @@ const UploadDebug = () => {
   const runDebug = async () => {
     setLoading(true);
     try {
-      // Check environment variables
-      const envCheck = {
-        API_ENDPOINT: import.meta.env.VITE_API_ENDPOINT,
-        hasApiEndpoint: !!import.meta.env.VITE_API_ENDPOINT,
-      };
-
       // Check authentication
       let authInfo = null;
       try {
@@ -77,7 +71,6 @@ const UploadDebug = () => {
       }
 
       setDebugInfo({
-        environment: envCheck,
         authentication: authInfo,
         apiTest,
         timestamp: new Date().toISOString(),
@@ -105,13 +98,6 @@ const UploadDebug = () => {
 
         {debugInfo && (
           <div className="space-y-4">
-            <div>
-              <h3 className="font-semibold mb-2">Environment Variables:</h3>
-              <pre className="bg-gray-100 p-3 rounded text-sm overflow-auto">
-                {JSON.stringify(debugInfo.environment, null, 2)}
-              </pre>
-            </div>
-
             <div>
               <h3 className="font-semibold mb-2">Authentication:</h3>
               {debugInfo.authentication?.hasUploadPermission === false && (

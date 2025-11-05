@@ -167,3 +167,14 @@ All colors MUST be HSL.
 *::-webkit-scrollbar-track { background: hsl(var(--muted)); }
 *::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 8px; }
 *::-webkit-scrollbar-thumb:hover { background: hsl(var(--ring)); }
+
+/* Ensure Sonner toasts are visible */
+[data-sonner-toaster] {
+  z-index: 9999 !important;
+  position: fixed !important;
+}
+
+[data-sonner-toast] {
+  z-index: 9999 !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+}
