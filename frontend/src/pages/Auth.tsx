@@ -14,7 +14,7 @@ type AuthProps = {
 const Auth: React.FC<AuthProps> = ({ initialMode = "login" }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { login, register, confirmSignUp, resendVerificationCode } = useAuth();
+  const { login, register, confirmSignUp, resendVerificationCode, confirmMFALogin } = useAuth();
 
   const [mode, setMode] = useState<"login" | "signup">(initialMode);
   const isSignUp = mode === "signup";
@@ -23,6 +23,9 @@ const Auth: React.FC<AuthProps> = ({ initialMode = "login" }) => {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
+  const [showMFALogin, setShowMFALogin] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaLoading, setMfaLoading] = useState(false);
 
   // Sign up state
   const [fullName, setFullName] = useState("");
@@ -80,7 +83,18 @@ const Auth: React.FC<AuthProps> = ({ initialMode = "login" }) => {
     }
     setLoginLoading(true);
     try {
-      await login(loginEmail, loginPassword);
+      const result = await login(loginEmail, loginPassword);
+      
+      // Check if MFA is required
+      if (result.requiresMFA) {
+        setShowMFALogin(true);
+        toast({ 
+          title: "MFA Required", 
+          description: "Please enter the 6-digit code from your authenticator app",
+        });
+        return;
+      }
+      
       toast({ title: "Welcome back", description: "Signed in successfully" });
       navigate("/dashboard");
     } catch (err: any) {
@@ -111,6 +125,24 @@ const Auth: React.FC<AuthProps> = ({ initialMode = "login" }) => {
       }
     } finally {
       setLoginLoading(false);
+    }
+  };
+
+  const handleMFALogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaCode || mfaCode.length !== 6) {
+      toast({ title: "Error", description: "Please enter a valid 6-digit code", variant: "destructive" });
+      return;
+    }
+    setMfaLoading(true);
+    try {
+      await confirmMFALogin(mfaCode);
+      toast({ title: "Welcome back", description: "Signed in successfully" });
+      navigate("/dashboard");
+    } catch (err: any) {
+      toast({ title: "MFA verification failed", description: err.message, variant: "destructive" });
+    } finally {
+      setMfaLoading(false);
     }
   };
 
@@ -253,15 +285,56 @@ const Auth: React.FC<AuthProps> = ({ initialMode = "login" }) => {
                       </Link>
                     </div>
                   </div>
-                  <Button type="submit" className="w-full" variant="hero" disabled={loginLoading}>
-                    {loginLoading ? "Signing in..." : "Sign In"}
-                  </Button>
-                  <div className="text-sm text-muted-foreground">
-                    Don’t have an account?{" "}
-                    <button type="button" onClick={() => setMode("signup")} className="text-primary hover:underline">
-                      Sign Up
-                    </button>
-                  </div>
+                  {!showMFALogin ? (
+                    <>
+                      <Button type="submit" className="w-full" variant="hero" disabled={loginLoading}>
+                        {loginLoading ? "Signing in..." : "Sign In"}
+                      </Button>
+                      <div className="text-sm text-muted-foreground">
+                        Don't have an account?{" "}
+                        <button type="button" onClick={() => setMode("signup")} className="text-primary hover:underline">
+                          Sign Up
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <form onSubmit={handleMFALogin} className="space-y-4">
+                      <div>
+                        <h3 className="text-xl font-semibold mb-2">Enter MFA Code</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Open your authenticator app and enter the 6-digit code
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="mfaCode">MFA Code</Label>
+                        <Input
+                          id="mfaCode"
+                          type="text"
+                          value={mfaCode}
+                          onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          placeholder="000000"
+                          maxLength={6}
+                          className="text-center text-2xl tracking-widest"
+                          required
+                          autoFocus
+                        />
+                      </div>
+                      <Button type="submit" className="w-full" variant="hero" disabled={mfaLoading}>
+                        {mfaLoading ? "Verifying..." : "Verify Code"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => {
+                          setShowMFALogin(false);
+                          setMfaCode("");
+                        }}
+                      >
+                        Back to Login
+                      </Button>
+                    </form>
+                  )}
                 </form>
               </div>
 

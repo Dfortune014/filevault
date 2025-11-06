@@ -207,3 +207,22 @@ resource "aws_apigatewayv2_route" "admin_delete" {
   authorization_type = "JWT"
 }
 
+#############################################
+# Check MFA Status Route
+#############################################
+resource "aws_apigatewayv2_integration" "check_mfa_status" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.check_mfa_status_lambda_arn
+  integration_method     = "GET"
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "check_mfa_status" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /api/auth/mfa-status"
+  target             = "integrations/${aws_apigatewayv2_integration.check_mfa_status.id}"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "JWT"
+}
+

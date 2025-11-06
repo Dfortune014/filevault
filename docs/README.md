@@ -187,5 +187,5 @@ By completing this project, you will learn:
 
 ---
 
-**Built for learning secure cloud security and development**
+**Built with ❤️ for learning secure cloud development**
 

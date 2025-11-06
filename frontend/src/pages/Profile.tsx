@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Shield, 
@@ -18,16 +19,46 @@ import {
   Eye,
   ArrowLeft,
   Save,
-  X
+  X,
+  Lock
 } from "lucide-react";
+import { MFASetup } from "@/components/MFASetup";
 
 const Profile = () => {
-  const { user, logout, updateProfile } = useAuth();
+  const { user, logout, updateProfile, isMFAEnabled } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isEditingName, setIsEditingName] = useState(false);
   const [fullName, setFullName] = useState(user?.fullName || "");
   const [loading, setLoading] = useState(false);
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [showMFASetup, setShowMFASetup] = useState(false);
+  const [checkingMFA, setCheckingMFA] = useState(true);
+
+  useEffect(() => {
+    const checkMFAStatus = async () => {
+      console.log("📄 Profile: Checking MFA status");
+      console.log("📄 Profile: User email:", user?.email);
+      try {
+        const enabled = await isMFAEnabled();
+        console.log("📄 Profile: MFA enabled result:", enabled);
+        setMfaEnabled(enabled);
+      } catch (error) {
+        console.error("📄 Profile: Error checking MFA status:", error);
+        // If check fails, assume MFA is not enabled
+        setMfaEnabled(false);
+      } finally {
+        setCheckingMFA(false);
+      }
+    };
+
+    if (user) {
+      console.log("📄 Profile: User exists, checking MFA status");
+      checkMFAStatus();
+    } else {
+      console.log("📄 Profile: No user, skipping MFA check");
+    }
+  }, [user, isMFAEnabled]);
 
   const handleUpdateName = async () => {
     if (!fullName.trim()) {
@@ -289,6 +320,78 @@ const Profile = () => {
               <CardDescription>Manage your account security settings</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* MFA Settings */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2">
+                      <Lock className="h-4 w-4" />
+                      <h4 className="font-medium">Multi-Factor Authentication (MFA)</h4>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Add an extra layer of security to your account with an authenticator app
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    {checkingMFA ? (
+                      <span className="text-sm text-muted-foreground">Checking...</span>
+                    ) : mfaEnabled ? (
+                      <Badge variant="default" className="bg-green-500">
+                        <Shield className="h-3 w-3 mr-1" />
+                        Enabled
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">Not Enabled</Badge>
+                    )}
+                    <Button 
+                      variant={mfaEnabled ? "outline" : "default"} 
+                      size="sm"
+                      onClick={() => setShowMFASetup(true)}
+                    >
+                      {mfaEnabled ? "Reconfigure MFA" : "Enable MFA"}
+                    </Button>
+                    <Dialog open={showMFASetup} onOpenChange={setShowMFASetup}>
+                      <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                          <DialogTitle>Setup Multi-Factor Authentication</DialogTitle>
+                          <DialogDescription>
+                            Follow the steps to enable MFA for your account
+                          </DialogDescription>
+                        </DialogHeader>
+                        <MFASetup
+                          onComplete={async () => {
+                            setShowMFASetup(false);
+                            // Refresh MFA status after successful setup
+                            try {
+                              const enabled = await isMFAEnabled();
+                              setMfaEnabled(enabled);
+                            } catch (error) {
+                              // If check fails, assume it's enabled since setup succeeded
+                              setMfaEnabled(true);
+                            }
+                            toast({
+                              title: "MFA Enabled",
+                              description: "Multi-factor authentication has been successfully enabled",
+                            });
+                          }}
+                          onCancel={() => setShowMFASetup(false)}
+                        />
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </div>
+                {mfaEnabled && (
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                    <p className="text-sm text-green-800 dark:text-green-200">
+                      <Shield className="h-4 w-4 inline mr-1" />
+                      Your account is protected with MFA. You'll need to enter a code from your authenticator app each time you sign in.
+                    </p>
+                  </div>
+                )}
+                <Separator />
+              </div>
+
+              {/* Active Session */}
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="font-medium">Active Session</h4>

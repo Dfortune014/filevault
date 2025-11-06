@@ -51,6 +51,13 @@ export interface DelegateResponse {
   user: UserInfo;
 }
 
+export interface MFAStatusResponse {
+  mfaEnabled: boolean;
+  hasTotpDevice: boolean;
+  preferredMfaSetting: string;
+  mfaDevices: number;
+}
+
 class UserService {
   private async getAuthToken(): Promise<string> {
     const session = await fetchAuthSession();
@@ -189,6 +196,24 @@ class UserService {
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || "Failed to delegate user");
+    }
+  }
+
+  async checkMFAStatus(): Promise<MFAStatusResponse> {
+    try {
+      const token = await this.getAuthToken();
+      const response = await axios.get(
+        `${API_ENDPOINT}/api/auth/mfa-status`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || "Failed to check MFA status");
     }
   }
 }

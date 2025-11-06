@@ -9,6 +9,7 @@ $root = Join-Path $PSScriptRoot "..\terraform\modules\lambdas"
 # Map folder names to zip file names (handles hyphens vs underscores)
 $lambdaMapping = @{
     "admin_delete"        = "admin_delete"
+    "check_mfa_status"    = "check_mfa_status"
     "delete"              = "delete"
     "download"            = "download"
     "get_delegated_users" = "get_delegated_users"

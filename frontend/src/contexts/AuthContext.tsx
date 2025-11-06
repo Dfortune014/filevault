@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
-import { signIn, signUp, signOut, getCurrentUser, confirmSignUp as amplifyConfirmSignUp, resendSignUpCode, resetPassword as amplifyResetPassword, confirmResetPassword, fetchAuthSession, updateUserAttribute } from "aws-amplify/auth";
+import { signIn, signUp, signOut, getCurrentUser, confirmSignUp as amplifyConfirmSignUp, resendSignUpCode, resetPassword as amplifyResetPassword, confirmResetPassword, fetchAuthSession, updateUserAttribute, setUpTOTP, verifyTOTPSetup, confirmSignIn, fetchUserAttributes } from "aws-amplify/auth";
 import { jwtDecode } from "jwt-decode";
 
 export type UserRole = "Admin" | "Editor" | "Viewer";
@@ -15,7 +15,8 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<{ requiresMFA?: boolean }>;
+  confirmMFALogin: (code: string) => Promise<void>;
   register: (fullName: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   confirmSignUp: (email: string, code: string) => Promise<void>;
@@ -23,6 +24,9 @@ interface AuthContextType {
   resetPassword: (email: string, code: string, newPassword: string) => Promise<void>;
   resendVerificationCode: (email: string) => Promise<void>;
   updateProfile: (fullName: string) => Promise<void>;
+  setupMFA: () => Promise<{ secretCode: string; qrCode: string }>;
+  verifyMFASetup: (code: string) => Promise<void>;
+  isMFAEnabled: () => Promise<boolean>;
   resetInactivityTimer: () => void;
   showInactivityWarning: boolean;
   inactivityTimeRemaining: number;
@@ -202,14 +206,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const role = getRole(decoded["cognito:groups"]);
       
+      const userEmail = decoded.email;
+      console.log("🔐 checkAuthState - Setting user email:", userEmail);
+      console.log("📧 Email from token:", userEmail);
+      console.log("👤 User from getCurrentUser:", {
+        username: user.username,
+        loginId: user.signInDetails?.loginId
+      });
+      
       setUser({
-        email: decoded.email,
+        email: userEmail,
         fullName: decoded.name || decoded.email.split('@')[0],
         role,
         token,
         sub: decoded.sub, // Extract Cognito subject claim
       });
+      
+      // After setting user, check if MFA status exists for this email
+      if (userEmail) {
+        const mfaKey = `mfa_enabled_${userEmail}`;
+        const mfaStatus = localStorage.getItem(mfaKey);
+        console.log("🔍 After setting user, checking MFA key:", mfaKey, "Status:", mfaStatus);
+      }
     } catch (error) {
+      console.error("❌ Error in checkAuthState:", error);
       setUser(null);
     } finally {
       setLoading(false);
@@ -223,19 +243,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return "Viewer";
   };
 
-  const login = async (email: string, password: string) => {
+  // Store MFA challenge for later confirmation
+  const mfaChallengeRef = useRef<any>(null);
+
+  const login = async (email: string, password: string): Promise<{ requiresMFA?: boolean }> => {
     try {
       const signInResult = await signIn({ username: email, password });
       
       // Check if signIn returned a challenge (AWS Amplify v6 behavior)
-      // For unverified users, Amplify may return a challenge instead of throwing
       if (signInResult.nextStep) {
         const nextStep = signInResult.nextStep;
+        const signInStep = nextStep.signInStep;
+        const signInStepStr = String(signInStep);
+        
+        // Check if MFA TOTP challenge is required
+        // AWS Amplify v6 uses these step values for TOTP MFA
+        if (signInStep === 'CONFIRM_SIGN_IN_WITH_TOTP_CODE' || 
+            signInStepStr.includes('TOTP') ||
+            signInStepStr.includes('SOFTWARE_TOKEN')) {
+          // Store the challenge for later confirmation
+          mfaChallengeRef.current = signInResult;
+          return { requiresMFA: true };
+        }
         
         // Check if email verification is required
-        if (nextStep.signInStep === 'CONFIRM_SIGN_UP' || 
-            nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_SMS_CODE' ||
-            (nextStep.signInStep && nextStep.signInStep.includes('CONFIRM'))) {
+        if (signInStep === 'CONFIRM_SIGN_UP' || 
+            signInStep === 'CONFIRM_SIGN_IN_WITH_SMS_CODE' ||
+            (signInStepStr.includes('CONFIRM') && !signInStepStr.includes('TOTP') && !signInStepStr.includes('SOFTWARE_TOKEN'))) {
           const customError: any = new Error('Your email address needs to be verified before you can sign in. Please check your email for the verification code.');
           customError.name = 'UserNotConfirmedException';
           customError.code = 'EMAIL_NOT_VERIFIED';
@@ -246,6 +280,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // If no challenge, proceed to check auth state
       await checkAuthState();
+      
+      return { requiresMFA: false };
     } catch (error: any) {
       let errorMessage = "Login failed";
       
@@ -295,6 +331,182 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       throw new Error(errorMessage);
+    }
+  };
+
+  const confirmMFALogin = async (code: string): Promise<void> => {
+    try {
+      if (!mfaChallengeRef.current) {
+        throw new Error("No MFA challenge found. Please try logging in again.");
+      }
+
+      // Confirm sign-in with TOTP code
+      const result = await confirmSignIn({
+        challengeResponse: code,
+      });
+
+      // Check if there are any additional steps
+      if (result.nextStep && result.nextStep.signInStep !== 'DONE') {
+        throw new Error("Additional authentication steps required");
+      }
+
+      // Clear the challenge
+      mfaChallengeRef.current = null;
+
+      // Proceed to check auth state
+      await checkAuthState();
+    } catch (error: any) {
+      let errorMessage = "MFA verification failed";
+      
+      if (error.name) {
+        const errorMap: Record<string, string> = {
+          'CodeMismatchException': 'Invalid MFA code. Please check and try again.',
+          'ExpiredCodeException': 'MFA code has expired. Please enter the latest code from your authenticator app.',
+          'NotAuthorizedException': 'Invalid MFA code. Please try again.',
+          'LimitExceededException': 'Too many attempts. Please try again later.',
+        };
+        errorMessage = errorMap[error.name] || (error.message || error.name);
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      throw new Error(errorMessage);
+    }
+  };
+
+  const setupMFA = async (): Promise<{ secretCode: string; qrCode: string }> => {
+    try {
+      const result = await setUpTOTP();
+      
+      // AWS Amplify v6 returns: { sharedSecret: string }
+      // Check for both sharedSecret and qrCode (in case it's already provided)
+      const sharedSecret = (result as any).sharedSecret || (result as any).secretCode || '';
+      const existingQrCode = (result as any).qrCode || '';
+      
+      if (!sharedSecret) {
+        throw new Error("Failed to get secret from MFA setup. Please try again.");
+      }
+      
+      // If QR code is already provided, use it; otherwise construct it
+      let qrCodeUri = existingQrCode;
+      
+      if (!qrCodeUri) {
+        // Get user email from current authenticated user
+        const currentUser = user;
+        const userEmail = currentUser?.email || '';
+        
+        if (!userEmail) {
+          // Fallback: try to get from getCurrentUser
+          try {
+            const amplifyUser = await getCurrentUser();
+            const email = amplifyUser.signInDetails?.loginId || amplifyUser.username || '';
+            if (email) {
+              const issuer = "FileVault";
+              qrCodeUri = `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(email)}?secret=${sharedSecret}&issuer=${encodeURIComponent(issuer)}`;
+            }
+          } catch (e) {
+            // Silently handle error - will throw below if qrCodeUri is still empty
+          }
+        } else {
+          // Construct the otpauth:// URI for the QR code
+          // Format: otpauth://totp/Issuer:UserEmail?secret=SECRET&issuer=Issuer
+          const issuer = "FileVault";
+          qrCodeUri = `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(userEmail)}?secret=${sharedSecret}&issuer=${encodeURIComponent(issuer)}`;
+        }
+      }
+      
+      if (!qrCodeUri) {
+        throw new Error("Failed to generate QR code URI");
+      }
+      
+      return {
+        secretCode: sharedSecret,
+        qrCode: qrCodeUri,
+      };
+    } catch (error: any) {
+      throw new Error(error.message || "Failed to setup MFA");
+    }
+  };
+
+  const verifyMFASetup = async (code: string): Promise<void> => {
+    try {
+      await verifyTOTPSetup({ code });
+      
+      console.log("🔐 MFA Verification Successful");
+      
+      // Wait a moment for Cognito to propagate the MFA status
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Verify MFA is actually enabled by checking status
+      // Retry up to 3 times with delays
+      let mfaEnabled = false;
+      for (let i = 0; i < 3; i++) {
+        try {
+          const { userService } = await import("@/services/userService");
+          const mfaStatus = await userService.checkMFAStatus();
+          console.log(`🔍 MFA Status check (attempt ${i + 1}):`, mfaStatus);
+          
+          if (mfaStatus.mfaEnabled) {
+            mfaEnabled = true;
+            break;
+          }
+          
+          // Wait before retrying (exponential backoff)
+          if (i < 2) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+          }
+        } catch (e) {
+          console.warn(`⚠️ MFA status check failed (attempt ${i + 1}):`, e);
+          if (i < 2) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+          }
+        }
+      }
+      
+      if (!mfaEnabled) {
+        console.warn("⚠️ MFA verification succeeded but status check shows it's not enabled yet. It may take a moment to propagate.");
+      }
+    } catch (error: any) {
+      let errorMessage = "MFA setup verification failed";
+      
+      if (error.name) {
+        const errorMap: Record<string, string> = {
+          'CodeMismatchException': 'Invalid code. Please check and try again.',
+          'ExpiredCodeException': 'Code has expired. Please enter the latest code from your authenticator app.',
+          'NotAuthorizedException': 'Invalid code. Please try again.',
+        };
+        errorMessage = errorMap[error.name] || (error.message || error.name);
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      throw new Error(errorMessage);
+    }
+  };
+
+  const isMFAEnabled = async (): Promise<boolean> => {
+    try {
+      console.log("🔍 Checking MFA status via backend API...");
+      
+      // Use the backend API to check MFA status from Cognito
+      const { userService } = await import("@/services/userService");
+      const mfaStatus = await userService.checkMFAStatus();
+      
+      console.log("📊 MFA Status from backend:", mfaStatus);
+      console.log("✅ MFA enabled:", mfaStatus.mfaEnabled);
+      
+      return mfaStatus.mfaEnabled;
+    } catch (error: any) {
+      console.error("❌ Error checking MFA status:", error);
+      // Fallback to localStorage if API fails
+      if (user?.email) {
+        const stored = localStorage.getItem(`mfa_enabled_${user.email}`);
+        if (stored === 'true') {
+          console.log("✅ MFA is enabled (from localStorage fallback)");
+          return true;
+        }
+      }
+      return false;
     }
   };
 
@@ -488,6 +700,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     loading,
     login,
+    confirmMFALogin,
     register,
     logout,
     confirmSignUp,
@@ -495,6 +708,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     resetPassword,
     resendVerificationCode,
     updateProfile,
+    setupMFA,
+    verifyMFASetup,
+    isMFAEnabled,
     resetInactivityTimer,
     showInactivityWarning,
     inactivityTimeRemaining,

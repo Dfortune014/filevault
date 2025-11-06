@@ -15,6 +15,10 @@ resource "aws_cognito_user_pool" "this" {
 
   mfa_configuration = var.mfa_configuration
 
+  software_token_mfa_configuration {
+    enabled = var.mfa_configuration != "OFF"
+  }
+
   # 👇 Add Lambda trigger only if passed in
   dynamic "lambda_config" {
     for_each = var.post_confirmation_lambda_arn != null ? [1] : []
@@ -37,5 +41,17 @@ resource "aws_cognito_user_pool_client" "this" {
   "ALLOW_REFRESH_TOKEN_AUTH",   # ✅ session refresh
   "ALLOW_USER_PASSWORD_AUTH"    # ✅ enables admin-initiate-auth for CLI tests
   ]
+
+  #enable mfa token generation for software token mfa
+
+  token_validity_units {
+    access_token = "hours"
+    id_token = "hours"
+    refresh_token = "days"
+  }
+
+  access_token_validity = 1
+  id_token_validity = 1
+  refresh_token_validity = 7
 }
 

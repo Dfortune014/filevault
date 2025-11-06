@@ -23,7 +23,7 @@ module "auth" {
   source                       = "./modules/auth"
   user_pool_name               = "filevault-pool"
   password_min_length          = 10
-  mfa_configuration            = "OFF"
+  mfa_configuration            = "OPTIONAL"
   post_confirmation_lambda_arn = module.lambdas.post_confirmation_arn
 }
 
@@ -55,6 +55,7 @@ module "api" {
   update_delegate_lambda_arn = module.lambdas.update_delegate_lambda_arn
   get_delegated_users_lambda_arn = module.lambdas.get_delegated_users_lambda_arn
   admin_delete_lambda_arn    = module.lambdas.admin_delete_lambda_arn
+  check_mfa_status_lambda_arn = module.lambdas.check_mfa_status_lambda_arn
 }
 
 
