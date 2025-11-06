@@ -52,49 +52,49 @@ FileVault is a secure file management system designed to teach and demonstrate:
 
 This documentation is organized into phases that represent the development journey:
 
-### [Phase 1: Infrastructure Foundation](./phase1-infrastructure.md)
+### [Phase 1: Infrastructure Foundation](./docs/phase1-infrastructure.md)
 - VPC and networking setup
 - S3 storage with KMS encryption
 - IAM roles and policies
 - Terraform state management
 - CloudTrail audit logging
 
-### [Phase 2: Authentication & Authorization](./phase2-authentication.md)
+### [Phase 2: Authentication & Authorization](./docs/phase2-authentication.md)
 - AWS Cognito User Pool configuration
 - User registration and password policies
 - Role-based access control (Admin, Editor, Viewer)
 - Cognito Identity Pool and STS credentials
 - Authentication flows and token management
 
-### [Phase 3: Backend API Development](./phase3-backend-api.md)
+### [Phase 3: Backend API Development](./docs/phase3-backend-api.md)
 - API Gateway HTTP API setup
 - Lambda functions for file operations
 - Cognito JWT authorization
 - Presigned URL generation
 - Error handling and security
 
-### [Phase 4: Frontend Application](./phase4-frontend.md)
+### [Phase 4: Frontend Application](./docs/phase4-frontend.md)
 - React application architecture
 - Authentication UI and flows
 - File management interface
 - Role-based UI components
 - AWS SDK integration
 
-### [Phase 5: Advanced Features](./phase5-advanced-features.md)
+### [Phase 5: Advanced Features](./docs/phase5-advanced-features.md)
 - Multi-Factor Authentication (MFA)
 - User management operations
 - Role management and delegation
 - Delegated access (Editor → Viewer)
 - Admin operations
 
-### [Security Best Practices](./security-best-practices.md)
+### [Security Best Practices](./docs/security-best-practices.md)
 - Encryption at rest and in transit
 - Least privilege IAM policies
 - Defense in depth strategies
 - Compliance considerations
 - Security monitoring
 
-### [Deployment & Operations](./deployment.md)
+### [Deployment & Operations](./docs/deployment.md)
 - Deployment procedures
 - Testing strategies
 - Monitoring and logging
